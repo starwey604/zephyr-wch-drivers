@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 tests:
+  wch.uart_rx.native:
+    tags: [uart, dma, wch]
+    platform_allow: [native_sim/native/64]
+    integration_platforms: [native_sim/native/64]
+    harness: ztest
+    extra_args: WCH_TEST_RX=ON
   wch.uart_tx.native:
     tags: [uart, dma, wch]
     platform_allow: [native_sim/native/64]

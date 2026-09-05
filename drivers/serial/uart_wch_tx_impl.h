@@ -92,12 +92,18 @@ static void usart_wch_isr(const struct device *dev)
 	struct wch_uart_tx_notification note = {0};
 	k_spinlock_key_t key = k_spin_lock(&data->lock);
 
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+	usart_wch_rx_isr_locked(dev);
+#endif
 	if (data->tx.phase == WCH_TX_WAIT_TC && (config->regs->CTLR1 & USART_CTLR1_TCIE) &&
 	    (config->regs->STATR & USART_STATR_TC)) {
 		usart_wch_tx_finish_locked(dev, UART_TX_DONE, &note);
 	}
 	k_spin_unlock(&data->lock, key);
 	usart_wch_tx_notify(dev, &note);
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+	usart_wch_rx_dispatch(dev);
+#endif
 }
 
 static void usart_wch_tx_timeout(struct k_work *work)
@@ -160,7 +166,11 @@ static int usart_wch_async_callback_set(const struct device *dev, uart_callback_
 	struct usart_wch_data *data = dev->data;
 	k_spinlock_key_t key = k_spin_lock(&data->lock);
 
-	if (data->tx.phase != WCH_TX_IDLE) {
+	if (data->tx.phase != WCH_TX_IDLE
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+	    || data->rx.phase != WCH_RX_IDLE
+#endif
+	) {
 		k_spin_unlock(&data->lock, key);
 		return -EBUSY;
 	}
@@ -286,6 +296,7 @@ static void usart_wch_tx_poll_out(const struct device *dev, unsigned char ch)
 }
 
 /* Real unsupported methods: Zephyr async RX wrappers dereference these slots. */
+#ifndef CONFIG_WCH_UART_ASYNC_RX
 static int usart_wch_rx_unsupported(const struct device *dev, uint8_t *buf, size_t len,
 				    int32_t timeout)
 {
@@ -309,4 +320,5 @@ static int usart_wch_rx_disable_unsupported(const struct device *dev)
 	ARG_UNUSED(dev);
 	return -ENOTSUP;
 }
+#endif
 #endif

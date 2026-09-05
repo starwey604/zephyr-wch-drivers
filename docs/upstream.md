@@ -22,6 +22,9 @@ The subsequent TX-only implementation in `uart_wch_tx_state.h` and
 `uart_wch_tx_impl.h` is new downstream code, not an async implementation from
 the community branch. It uses Zephyr's public DMA/UART contracts and HAL
 register definitions. See [TX scope and verification](uart-tx.md).
+The later `uart_wch_rx_state.h` / `uart_wch_rx_impl.h` extension is also new
+downstream code. Vendor flag-clear documentation was consulted, not imported.
+See [RX scope and hardware gates](uart-rx.md).
 Do not enable upstream `CONFIG_UART_WCH_USART` at the same time: both use
 `wch,usart` and instantiate the same devices. No custom binding is needed yet.
 

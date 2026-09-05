@@ -55,8 +55,8 @@ ZTEST(wch_uart_dma, test_dma_request_wiring)
 
 ZTEST(wch_uart_dma, test_async_dma_loopback_pending)
 {
-	/* No fake success: enabling DMA1 does not implement the UART async API. */
-	TC_PRINT("SKIP: async RX and loopback qualification are not implemented yet\n");
+	/* Sustained traffic/IDLE qualification remains separate from paced RX. */
+	TC_PRINT("SKIP: continuous RX/IDLE qualification requires hardware\n");
 	ztest_test_skip();
 }
 

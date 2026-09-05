@@ -24,12 +24,23 @@ config WCH_UART_DMA_PREPARE
 	  select SERIAL_SUPPORT_ASYNC. It prepares the next development stage.
 
 config WCH_UART_ASYNC_TX
-	bool "Experimental CH32V203 asynchronous DMA TX (no async RX)"
+	bool "Experimental CH32V203 asynchronous DMA TX"
 	depends on WCH_UART && UART_ASYNC_API && DMA && WCH_DMA
 	select WCH_UART_DMA_PREPARE
 	help
 	  Reserve USART1/2 TX and RX DMA channels and implement byte-wide TX,
 	  abort and a software deadline. TX_DONE waits for USART TC. Async RX
-	  returns ENOTSUP. Disable UART_INTERRUPT_DRIVEN and UART_WIDE_DATA:
+	  requires the separate WCH_UART_ASYNC_RX option. Disable
+	  UART_INTERRUPT_DRIVEN and UART_WIDE_DATA:
 	  mixed IRQ/async and wide data are not supported in this increment.
 	  Not yet hardware-qualified. Do not use for production control buses.
+
+config WCH_UART_ASYNC_RX
+	bool "Experimental CH32V203 asynchronous DMA RX (no inactivity timeout)"
+	depends on WCH_UART_ASYNC_TX
+	help
+	  Enable byte-wide RX with one current and one queued buffer, explicit
+	  disable and UART/DMA error events. Only SYS_FOREVER_US is accepted;
+	  finite inactivity timeout and IDLE handling await hardware validation.
+	  Normal-mode DMA rearming has a gap: lossless continuous reception,
+	  especially dual 3 Mbaud operation, is NOT yet qualified.

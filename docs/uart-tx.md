@@ -1,5 +1,10 @@
 # UART DMA TX increment
 
+This document describes the TX-only configuration. The subsequent opt-in
+[RX increment](uart-rx.md) now adds limited RX; finite RX timeout and all
+hardware qualification remain pending. The historical next-step notes below
+refer to the TX milestone, not the current overall module status.
+
 Experimental CH32V203 USART1/2 async **TX only**, using Zephyr's public UART
 and DMA APIs. The community import remains the polling/IRQ baseline; this TX
 implementation is new downstream code. No Zephyr/HAL checkout is patched.

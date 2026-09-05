@@ -37,7 +37,9 @@ static int mock_configure(const struct device *dev, uint32_t channel, struct dma
 	const struct device *uart = config->user_data;
 	const struct usart_wch_config *uart_config = uart->config;
 
-	zassert_false(uart_config->regs->CTLR3 & USART_CTLR3_DMAT);
+	zassert_false(uart_config->regs->CTLR3 &
+		      (config->channel_direction == MEMORY_TO_PERIPHERAL ? USART_CTLR3_DMAT
+									 : USART_CTLR3_DMAR));
 	if (configure_result != 0) {
 		return configure_result;
 	}
@@ -63,7 +65,11 @@ static int mock_stop(const struct device *dev, uint32_t channel)
 	if (uart != NULL) {
 		const struct usart_wch_config *config = uart->config;
 
-		zassert_false(config->regs->CTLR3 & USART_CTLR3_DMAT,
+		zassert_false(config->regs->CTLR3 &
+				      (dma_channels[channel].config.channel_direction ==
+						       MEMORY_TO_PERIPHERAL
+					       ? USART_CTLR3_DMAT
+					       : USART_CTLR3_DMAR),
 			      "Gate UART requests before stopping DMA");
 	}
 	dma_channels[channel].running = false;
@@ -150,7 +156,7 @@ static const struct device *const ports[] = {DEVICE_GET(uart0), DEVICE_GET(uart1
 static uint8_t buffer[UINT16_MAX + 1];
 static uint8_t next_buffer[8];
 struct capture {
-	struct uart_event events[8];
+	struct uart_event events[32];
 	size_t count;
 	struct k_sem notified;
 	bool restart;
@@ -176,6 +182,10 @@ static void cleanup(void *fixture)
 	ARRAY_FOR_EACH(ports, i) {
 		if (uart_data[i].tx.reserved) {
 			captures[i].restart = false;
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+			(void)uart_callback_set(ports[i], on_event, &captures[i]);
+			(void)uart_rx_disable(ports[i]);
+#endif
 			(void)uart_tx_abort(ports[i]);
 			struct k_work_sync sync;
 
@@ -457,9 +467,13 @@ ZTEST(wch_uart_tx, test_timeout_after_completion_is_noop)
 
 ZTEST(wch_uart_tx, test_async_rx_is_explicitly_unsupported)
 {
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+	zassert_equal(uart_rx_enable(ports[0], buffer, 32, 100), -ENOTSUP);
+#else
 	zassert_equal(uart_rx_enable(ports[0], buffer, 32, -1), -ENOTSUP);
 	zassert_equal(uart_rx_buf_rsp(ports[0], buffer, 32), -ENOTSUP);
 	zassert_equal(uart_rx_disable(ports[0]), -ENOTSUP);
+#endif
 }
 
 ZTEST(wch_uart_tx, test_polling_boundary_and_rx)
@@ -520,3 +534,6 @@ ZTEST(wch_uart_tx, test_nonterminal_and_wrong_channel_callbacks)
 }
 
 ZTEST_SUITE(wch_uart_tx, NULL, NULL, before, cleanup, NULL);
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+#include "rx.c"
+#endif

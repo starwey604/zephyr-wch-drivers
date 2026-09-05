@@ -32,6 +32,9 @@ typedef struct {
 #define USART_CTLR1_RE   0x004U
 #define USART_CTLR1_TE   0x008U
 #define USART_CTLR1_TCIE 0x040U
+#define USART_CTLR1_PEIE 0x100U
 #define USART_CTLR1_UE   0x2000U
 #define USART_CTLR3_DMAT 0x080U
+#define USART_CTLR3_DMAR 0x040U
+#define USART_CTLR3_EIE  0x001U
 #endif

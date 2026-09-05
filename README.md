@@ -7,8 +7,8 @@ validation target. This is a downstream project, not an official WCH driver pack
 ## Status
 
 This revision provides Zephyr module integration, an opt-in community UART
-baseline, experimental UART DMA TX and test scaffolding.
-**Async RX and USB UDC are not implemented; no hardware is qualified yet.**
+baseline, experimental UART DMA TX/RX and test scaffolding.
+**RX inactivity timeout and USB UDC are not implemented; no hardware is qualified.**
 
 | Component | Status |
 | --- | --- |
@@ -17,9 +17,9 @@ baseline, experimental UART DMA TX and test scaffolding.
 | UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
 | External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
 | UART asynchronous TX using DMA | Opt-in; TC completion, abort/deadline, native tests |
-| UART asynchronous RX using DMA | Not implemented; explicitly returns ENOTSUP in TX mode |
+| UART asynchronous RX using DMA | Opt-in normal-mode buffers/disable/errors; finite timeout unsupported |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Planned |
-| ztest / Twister test structure | UART smoke checks and explicit DMA/USB skips |
+| ztest / Twister test structure | Native state tests; build-only DMA/TX/paced RX; USB skips |
 | Hardware validation | Pending |
 
 Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
@@ -44,7 +44,13 @@ with `CONFIG_UART_ASYNC_API=y` on top of that replacement. Disable
 `UART_INTERRUPT_DRIVEN` and `UART_WIDE_DATA` in this mode. DONE waits for
 USART TC; ABORTED reports DMA-fed bytes, and a draining UART rejects new TX
 until TC. Read the deadline, buffer-lifetime and callback-context boundaries
-before using this experimental TX-only API.
+before using this experimental API.
+
+The [RX increment](docs/uart-rx.md) adds `CONFIG_WCH_UART_ASYNC_RX=y` for
+`SYS_FOREVER_US` reception, next-buffer handoff and stop/error events. It does
+not promise gapless reception. Development now pauses at the
+[hardware gates](docs/hardware-bringup.md) before IDLE timeout, high-rate
+optimization, FeTec integration or USB work.
 
 ## Repository layout
 
@@ -122,7 +128,7 @@ used the C++20 settings above. This verifies module integration, not hardware.
 
 The UART import is additionally compiled in polling and interrupt variants by
 Twister, together with DMA hardware tests and the USB placeholder (build-only).
-The DMA and UART TX implementations also have executable native_sim tests.
+The DMA and UART TX/RX implementations also have executable native_sim tests.
 See [test instructions](tests/README.md) for commands and hardware-test gaps.
 
 ## Community work and provenance

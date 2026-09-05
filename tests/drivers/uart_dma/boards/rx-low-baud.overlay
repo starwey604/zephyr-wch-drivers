@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Append to the board test overlay with EXTRA_DTC_OVERLAY_FILE. */
+&usart1 { current-speed = <115200>; };
+&usart2 { current-speed = <115200>; };

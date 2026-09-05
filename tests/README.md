@@ -9,17 +9,17 @@ Nothing is flashed automatically; no UART DMA or USB transfer is validated.
 
 | Directory | Current behavior | Next hardware checks |
 | --- | --- | --- |
-| `drivers/uart_dma` | Readiness/ownership; optional TX completion test; RX loopback skips | Capture dual-UART bytes/baud, tail/abort, RX |
+| `drivers/uart_dma` | Readiness/ownership, optional TX and paced local RX loopback | Capture dual-UART bytes/baud, tail/abort, RX timing |
 | `subsys/usb_endpoints` | EP0 and bulk cases explicitly skip; no USB stack/UDC | Enumeration, bulk IN/OUT, endpoint DMA, reset/reconnect |
 | `host` | Host-fixture requirements only | UART traffic generator and USB bulk exerciser |
 | `configs` | Optional Ragtime C++20 workspace compatibility fragment | Keep product-only dependencies out of test defaults |
 | `unit/uart_contract` | Host CTest: BRR arithmetic, DMA lengths, RX progress | Extend with state/IRQ tests as implementation arrives |
 | `unit/dma_native` | Production DMA driver + real Zephyr API, fake registers; 12 executed tests | Real PFIC/bus timing, request gating |
-| `unit/uart_tx_native` | Production UART source with fake DMA/HAL; 20 executable TX tests | Actual DMA requests, wire timing and stress |
+| `unit/uart_tx_native` | Shared production UART fixture; TX-only 20, RX-enabled 35 tests | Actual DMA requests, wire timing and stress |
 | `drivers/dma` | Bounded 8/16/32-bit memory-copy test, currently compile-only | Run on DMA1 with debugger result capture |
 | `check_build_guards.py` | Nine negative builds requiring specific diagnostics | Extend invalid resource/configuration coverage |
 
-`tests.yaml` registers UART interrupt/polling/TX variants and the USB placeholder.
+`tests.yaml` registers UART interrupt/polling/TX/RX variants and the USB placeholder.
 Hardware applications are `build_only: true`; native_sim is executable.
 Skipped cases are not successful transfer tests.
 The `test-uart0`/`test-uart1` aliases come from the Gello test overlay. The UART
@@ -51,6 +51,14 @@ For experimental TX (no async RX), add all three arguments in a new build:
 It sends deterministic 1-/128-byte buffers on both ports and checks terminal
 events. This remains compile-only until hardware and external capture are ready.
 See [TX constraints](../docs/uart-tx.md), especially abort counts and deadlines.
+
+For RX add `-DCONFIG_WCH_UART_ASYNC_RX=y` as well, or select scenario
+`wch.uart_dma.rx_loopback`. It tests full/partial buffers and a deliberately
+paced handoff using physical TX->RX jumpers on both ports. **No hardware run
+has occurred.** Start with the low-baud overlay and ordered
+[hardware gates](../docs/hardware-bringup.md); stop before IDLE/continuous-load
+implementation until those measurements are available. Only `SYS_FOREVER_US`
+is supported; finite timeouts return `-ENOTSUP`.
 
 For uncommitted development, replace the source and configuration paths with
 those in `../zephyr-wch-drivers` and also pass
@@ -108,12 +116,15 @@ This uses the real Zephyr allocator and API, not hand-written API stubs. The
 minimal fake HAL is private to the test target. It explicitly emulates flag
 clearing and injects count/IRQ changes; there is no simulated data transfer.
 
-For TX native tests use the same command with
+For UART native tests use the same command with
 `-T modules/drivers/wch/tests/unit/uart_tx_native` and a separate output directory.
 This compiles the entire production UART C file against a fault-injectable DMA
 provider, modeled UART registers and pinctrl. Zephyr APIs, spinlocks, allocation
 and workqueue are real. Test-only compile definitions enable the UART TX source
 branch on native_sim without enabling the actual CH32V203 SoC module globally.
+Scenarios `wch.uart_tx.native` and `wch.uart_rx.native` reuse this fixture;
+the latter sets test-only CMake `WCH_TEST_RX=ON` and adds 15 RX cases. Normal
+board builds must use Kconfig `WCH_UART_ASYNC_RX`, not that test selector.
 
 To compile the hardware DMA memory-copy test, use the same west build options
 as above with `-s modules/drivers/wch/tests/drivers/dma` and
@@ -143,7 +154,32 @@ supplies the DMA1 node missing in v4.4.0. This is a compile fixture, not a
 hardware validation or an unmodified release DT configuration. Gello itself
 does not build on that release because its EXTI node is also absent.
 
-## TX increment verification record
+## RX increment verification record
+
+Zephyr `577e42ad187825cc30d4b51423c32872eb4cf054` (4.4.99) with HAL
+`1713a445d44278e902a00e0fee3a111d7bde0d60`; independent v4.4.0
+`684c9e8f32e4373a21098559f748f06915f950c9` with HAL
+`dd3855ea624b05de7e6e95584789615d2058a0f3`. SDK 1.0.1; host GCC 16.2.1.
+
+| Check | Result | Evidence type |
+| --- | --- | --- |
+| TX-only / RX-enabled native, 4.4.99 | 20/20 + 35/35 | Executed production UART, modeled DMA/MMIO |
+| RX-enabled native, v4.4.0 | 35/35 | Same source, release API compatibility |
+| DMA native / arithmetic / negative guards | 12/12 / 3/3 / 9/9 | Modeled DMA / host CTest / expected build diagnostics |
+| Gello + BluePill UART polling/IRQ/TX/RX and DMA copy; Gello USB placeholder | 11/11 built | No hardware execution |
+| v4.4.0 BluePill RX with DMA1 overlay | Built | Release driver/test compatibility |
+| Gello RX with 115200 overlay | Built: ROM 51,720 B, RAM 11,824 B | ztest image, not production footprint |
+| STM32 Florid LED | Built | Module-disabled regression |
+
+Local Ragtime evidence: `build/test-wch-rx-matrix/` (board builds and initial
+native run), `build/test-wch-rx-native-final/` (final 55 UART cases),
+`build/test-wch-rx-native-v440/`, `build/test-wch-rx-hardware-v440/`,
+`build/test-wch-rx-low-baud/`, `build/test-wch-rx-contract/` and
+`build/test-wch-rx-stm32/`. Build artifacts are intentionally untracked.
+No flashing occurred. RX inactivity timeout, continuous traffic qualification
+and USB remain pending at the [hardware gate](../docs/hardware-bringup.md).
+
+## TX increment verification record (historical)
 
 Same pinned Zephyr/HAL pairs and SDK as below. No hardware was flashed.
 
@@ -157,7 +193,7 @@ Same pinned Zephyr/HAL pairs and SDK as below. No hardware was flashed.
 | v4.4.0 BluePill TX with DMA1 overlay | Built | Release API/binding compatibility |
 | STM32 Florid LED | Built | Module-disabled regression |
 
-RX/USB remain unsupported; passing native tests is not hardware qualification.
+RX/USB were unsupported at that milestone; passing native tests is not hardware qualification.
 
 ## DMA prerequisite verification record (historical)
 

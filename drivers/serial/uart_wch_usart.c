@@ -7,7 +7,7 @@
  * Downstream import: BOJIT/zephyr, driver/ch32_usb,
  * dc53b3104fbbe6db5d35d3276d281ffdc3da6483.
  * See docs/upstream.md for provenance and local changes.
- * Polling/interrupt baseline plus opt-in TX-only async DMA extension.
+ * Polling/interrupt baseline plus opt-in async DMA extensions.
  */
 
 #define DT_DRV_COMPAT wch_usart
@@ -26,6 +26,9 @@
 #ifdef CONFIG_WCH_UART_ASYNC_TX
 #include <zephyr/drivers/dma.h>
 #include "uart_wch_tx_state.h"
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+#include "uart_wch_rx_state.h"
+#endif
 #endif
 
 #ifdef CONFIG_WCH_UART_DMA_PREPARE
@@ -63,10 +66,16 @@ struct usart_wch_data {
 #ifdef CONFIG_WCH_UART_ASYNC_TX
 	struct k_spinlock lock;
 	struct wch_uart_tx tx;
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+	struct wch_uart_rx rx;
+#endif
 #endif
 };
 
 #ifdef CONFIG_WCH_UART_ASYNC_TX
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+#include "uart_wch_rx_impl.h"
+#endif
 #include "uart_wch_tx_impl.h"
 #endif
 
@@ -136,12 +145,27 @@ static int usart_wch_poll_in(const struct device *dev, unsigned char *ch)
 	const struct usart_wch_config *config = dev->config;
 	USART_TypeDef *regs = config->regs;
 
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+	struct usart_wch_data *data = dev->data;
+	k_spinlock_key_t key = k_spin_lock(&data->lock);
+	int ret = -1;
+
+	if (data->rx.phase != WCH_RX_IDLE) {
+		ret = -EBUSY;
+	} else if (regs->STATR & USART_STATR_RXNE) {
+		*ch = regs->DATAR;
+		ret = 0;
+	}
+	k_spin_unlock(&data->lock, key);
+	return ret;
+#else
 	if ((regs->STATR & USART_STATR_RXNE) == 0) {
 		return -1;
 	}
 
 	*ch = regs->DATAR;
 	return 0;
+#endif
 }
 
 static void usart_wch_poll_out(const struct device *dev, unsigned char ch)
@@ -340,9 +364,15 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 	.callback_set = usart_wch_async_callback_set,
 	.tx = usart_wch_tx,
 	.tx_abort = usart_wch_tx_abort,
+#ifdef CONFIG_WCH_UART_ASYNC_RX
+	.rx_enable = usart_wch_rx_enable,
+	.rx_buf_rsp = usart_wch_rx_buf_rsp,
+	.rx_disable = usart_wch_rx_disable,
+#else
 	.rx_enable = usart_wch_rx_unsupported,
 	.rx_buf_rsp = usart_wch_rx_buf_unsupported,
 	.rx_disable = usart_wch_rx_disable_unsupported,
+#endif
 #endif
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	.fifo_fill = usart_wch_fifo_fill,
