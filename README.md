@@ -46,8 +46,14 @@ In the Ragtime firmware workspace, test opt-in registration with:
 
 ```sh
 .venv/bin/west build -s zephyr/samples/hello_world -b ragtime_gello \
-  -d build/gello-module --pristine always -- -DCONFIG_WCH_DRIVERS=y
+  -d build/gello-module --pristine always -- \
+  -DCONFIG_WCH_DRIVERS=y -DCONFIG_CPP=y -DCONFIG_STD_CPP20=y
 ```
+
+`CONFIG_CPP=y` and `CONFIG_STD_CPP20=y` are needed by Ragtime's pinned OnePID
+module, which adds a C++20 interface target even to this C sample; they are
+not requirements of the WCH module itself. If SDK discovery fails, also pass
+`-DZEPHYR_SDK_INSTALL_DIR=/path/to/zephyr-sdk-1.0.1`.
 
 The Gello board is supplied by `Ragtime_Firmwares`, not this repository. Its
 UART console is disabled by default. Drivers remain opt-in so STM32 products
@@ -70,6 +76,11 @@ can include this module without enabling WCH support.
 The initial integration baseline is Zephyr
 `577e42ad187825cc30d4b51423c32872eb4cf054` and its `hal_wch` revision
 `1713a445d44278e902a00e0fee3a111d7bde0d60`, with Zephyr SDK 1.0.1.
+
+Compile-only integration checks passed in the complete west workspace:
+`ragtime_gello` with `samples/hello_world` and `CONFIG_WCH_DRIVERS=y`, and
+`ragtime_florid` with Ragtime's `apps/led` and the WCH option disabled. Both
+used the C++20 settings above. This verifies module integration, not hardware.
 
 ## Community work and provenance
 
