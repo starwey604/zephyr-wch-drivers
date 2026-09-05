@@ -9,20 +9,21 @@ Nothing is flashed automatically; no UART DMA or USB transfer is validated.
 
 | Directory | Current behavior | Next hardware checks |
 | --- | --- | --- |
-| `drivers/uart_dma` | Device readiness and four distinct DMA request mappings; DMA transfer case skips | Dual-UART async TX/RX, buffers, timeout, abort, overrun |
+| `drivers/uart_dma` | Readiness/ownership; optional TX completion test; RX loopback skips | Capture dual-UART bytes/baud, tail/abort, RX |
 | `subsys/usb_endpoints` | EP0 and bulk cases explicitly skip; no USB stack/UDC | Enumeration, bulk IN/OUT, endpoint DMA, reset/reconnect |
 | `host` | Host-fixture requirements only | UART traffic generator and USB bulk exerciser |
 | `configs` | Optional Ragtime C++20 workspace compatibility fragment | Keep product-only dependencies out of test defaults |
 | `unit/uart_contract` | Host CTest: BRR arithmetic, DMA lengths, RX progress | Extend with state/IRQ tests as implementation arrives |
 | `unit/dma_native` | Production DMA driver + real Zephyr API, fake registers; 12 executed tests | Real PFIC/bus timing, request gating |
+| `unit/uart_tx_native` | Production UART source with fake DMA/HAL; 20 executable TX tests | Actual DMA requests, wire timing and stress |
 | `drivers/dma` | Bounded 8/16/32-bit memory-copy test, currently compile-only | Run on DMA1 with debugger result capture |
-| `check_build_guards.py` | Seven negative builds requiring specific diagnostics | Extend invalid resource/configuration coverage |
+| `check_build_guards.py` | Nine negative builds requiring specific diagnostics | Extend invalid resource/configuration coverage |
 
-`tests.yaml` registers UART interrupt/polling variants and the USB placeholder.
+`tests.yaml` registers UART interrupt/polling/TX variants and the USB placeholder.
 Hardware applications are `build_only: true`; native_sim is executable.
 Skipped cases are not successful transfer tests.
 The `test-uart0`/`test-uart1` aliases come from the Gello test overlay. The UART
-driver does not consume the DMA mappings yet. A readiness check is not proof
+driver reserves/uses DMA in TX mode only. A readiness check is not proof
 of correct pin routing, request-channel selection, IRQ delivery or baud rate.
 
 ## Build in the Ragtime dev workspace
@@ -43,6 +44,13 @@ updating the manifest pin. The old `ch32` worktree is no longer the dev target:
 For polling-only coverage, build the UART application in a separate directory
 with the additional CMake argument `-DCONFIG_UART_INTERRUPT_DRIVEN=n`.
 If necessary, add `-DZEPHYR_SDK_INSTALL_DIR=/path/to/zephyr-sdk-1.0.1`.
+
+For experimental TX (no async RX), add all three arguments in a new build:
+`-DCONFIG_UART_INTERRUPT_DRIVEN=n -DCONFIG_UART_ASYNC_API=y
+-DCONFIG_WCH_UART_ASYNC_TX=y`. Or select Twister scenario `wch.uart_dma.tx`.
+It sends deterministic 1-/128-byte buffers on both ports and checks terminal
+events. This remains compile-only until hardware and external capture are ready.
+See [TX constraints](../docs/uart-tx.md), especially abort counts and deadlines.
 
 For uncommitted development, replace the source and configuration paths with
 those in `../zephyr-wch-drivers` and also pass
@@ -83,9 +91,10 @@ ctest --test-dir build/test-wch-contract --output-on-failure
 The three host suites test the same BRR helper used in driver initialization,
 DMA length limits, and future non-cyclic RX progress arithmetic. They do not
 simulate registers, IRQ delivery, callbacks or buffer ownership. Their checks
-remain enabled with `NDEBUG`. The negative runner checks seven specific errors:
+remain enabled with `NDEBUG`. The negative runner checks nine specific errors:
 duplicate UART/DMA drivers, init order, channel range, wrong request, missing RX, and
-disabled DMA. An unrelated build failure is a test failure, not a pass.
+disabled DMA, plus IRQ/async and wide-data/async conflicts. An unrelated build
+failure is a test failure, not a pass.
 
 Run the production DMA driver against the native register model:
 
@@ -98,6 +107,13 @@ Run the production DMA driver against the native register model:
 This uses the real Zephyr allocator and API, not hand-written API stubs. The
 minimal fake HAL is private to the test target. It explicitly emulates flag
 clearing and injects count/IRQ changes; there is no simulated data transfer.
+
+For TX native tests use the same command with
+`-T modules/drivers/wch/tests/unit/uart_tx_native` and a separate output directory.
+This compiles the entire production UART C file against a fault-injectable DMA
+provider, modeled UART registers and pinctrl. Zephyr APIs, spinlocks, allocation
+and workqueue are real. Test-only compile definitions enable the UART TX source
+branch on native_sim without enabling the actual CH32V203 SoC module globally.
 
 To compile the hardware DMA memory-copy test, use the same west build options
 as above with `-s modules/drivers/wch/tests/drivers/dma` and
@@ -127,7 +143,23 @@ supplies the DMA1 node missing in v4.4.0. This is a compile fixture, not a
 hardware validation or an unmodified release DT configuration. Gello itself
 does not build on that release because its EXTI node is also absent.
 
-## DMA prerequisite verification record
+## TX increment verification record
+
+Same pinned Zephyr/HAL pairs and SDK as below. No hardware was flashed.
+
+| Check | Result | Evidence type |
+| --- | --- | --- |
+| UART TX native, 4.4.99 and v4.4.0 | 20/20 each | Executed production UART with modeled provider/MMIO |
+| Existing DMA native suite, 4.4.99 | 12/12 | Executed production DMA with modeled MMIO |
+| UART arithmetic helpers | 3/3 | Host CTest |
+| Negative guards | 9/9 expected diagnostics | Compile-failure checks |
+| Gello + BluePill polling/IRQ/TX, DMA copy; Gello USB placeholder | 9/9 built | No device execution |
+| v4.4.0 BluePill TX with DMA1 overlay | Built | Release API/binding compatibility |
+| STM32 Florid LED | Built | Module-disabled regression |
+
+RX/USB remain unsupported; passing native tests is not hardware qualification.
+
+## DMA prerequisite verification record (historical)
 
 Same pinned Zephyr/HAL pairs and SDK as round 1; host compiler GCC 16.2.1.
 
@@ -170,7 +202,10 @@ UART DMA transfer and USB cases remain explicit skips. No hardware was flashed.
 2. UART fixture: 3.3 V logic and common ground; never use RS-232 levels. For
    future single-port loopback join PA9 to PA10 and PA2 to PA3. Do not connect
    two TX outputs together. Establish low-speed operation before 3 Mbaud and
-   simultaneous two-port load. Current tests do not send traffic.
+   simultaneous two-port load. The TX-only scenario now sends test data:
+   attach high-impedance analyzer inputs or two 3.3 V UART adapter RX inputs
+   to PA9 and PA2, with common ground. Record bytes and last-stop-bit timing.
+   No TX hardware run has been performed yet.
 3. USB fixture: data-capable cable and host test process. Gello USB shares pins
    with SDI; disconnect the debugger from the USB pair before enumeration and
    retain NRST access for recovery. Do not configure USB metadata as GPIOs.

@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+mainmenu "WCH UART TX native test"
+source "Kconfig.zephyr"
+
+config WCH_TX_TEST_API
+	bool
+	default y
+	select SERIAL_SUPPORT_ASYNC

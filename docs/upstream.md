@@ -18,6 +18,10 @@ Initial local changes: provenance comment and separate module CMake/Kconfig
 registration using `CONFIG_WCH_UART`. Round 1 adds clock/readiness/BRR checks,
 explicit 8N1-only framing validation, configuration-before-enable ordering,
 and opt-in DMA DT/readiness checks. See [the audit](uart-dma-design.md).
+The subsequent TX-only implementation in `uart_wch_tx_state.h` and
+`uart_wch_tx_impl.h` is new downstream code, not an async implementation from
+the community branch. It uses Zephyr's public DMA/UART contracts and HAL
+register definitions. See [TX scope and verification](uart-tx.md).
 Do not enable upstream `CONFIG_UART_WCH_USART` at the same time: both use
 `wch,usart` and instantiate the same devices. No custom binding is needed yet.
 

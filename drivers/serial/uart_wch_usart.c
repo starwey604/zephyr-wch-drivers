@@ -7,7 +7,7 @@
  * Downstream import: BOJIT/zephyr, driver/ch32_usb,
  * dc53b3104fbbe6db5d35d3276d281ffdc3da6483.
  * See docs/upstream.md for provenance and local changes.
- * Polling/interrupt baseline only: asynchronous DMA is not implemented.
+ * Polling/interrupt baseline plus opt-in TX-only async DMA extension.
  */
 
 #define DT_DRV_COMPAT wch_usart
@@ -22,6 +22,11 @@
 #include <hal_ch32fun.h>
 
 #include "uart_wch_contract.h"
+
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+#include <zephyr/drivers/dma.h>
+#include "uart_wch_tx_state.h"
+#endif
 
 #ifdef CONFIG_WCH_UART_DMA_PREPARE
 #include "uart_wch_dma_dt.h"
@@ -43,7 +48,11 @@ struct usart_wch_config {
 	const struct device *dma_tx_dev;
 	const struct device *dma_rx_dev;
 #endif
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+	uint32_t dma_tx_channel;
+	uint32_t dma_rx_channel;
+#endif
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_WCH_UART_ASYNC_TX)
 	void (*irq_config_func)(const struct device *dev);
 #endif
 };
@@ -51,7 +60,15 @@ struct usart_wch_config {
 struct usart_wch_data {
 	uart_irq_callback_user_data_t cb;
 	void *user_data;
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+	struct k_spinlock lock;
+	struct wch_uart_tx tx;
+#endif
 };
+
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+#include "uart_wch_tx_impl.h"
+#endif
 
 static int usart_wch_init(const struct device *dev)
 {
@@ -59,14 +76,13 @@ static int usart_wch_init(const struct device *dev)
 	USART_TypeDef *regs = config->regs;
 	uint32_t ctlr1 = USART_CTLR1_TE | USART_CTLR1_RE | USART_CTLR1_UE;
 	uint32_t clock_rate;
-	clock_control_subsys_t clock_sys = (clock_control_subsys_t *)(uintptr_t)config->clock_id;
+	clock_control_subsys_t clock_sys = (clock_control_subsys_t)(uintptr_t)config->clock_id;
 	uint32_t divn;
 	int err;
 
 	/* Reject unsupported framing instead of silently configuring another format. */
-	if (config->parity != UART_CFG_PARITY_NONE ||
-	    config->stop_bits != UART_CFG_STOP_BITS_1 || config->data_bits != 8 ||
-	    config->hw_flow_control) {
+	if (config->parity != UART_CFG_PARITY_NONE || config->stop_bits != UART_CFG_STOP_BITS_1 ||
+	    config->data_bits != 8 || config->hw_flow_control) {
 		return -ENOTSUP;
 	}
 	if (!device_is_ready(config->clock_dev)) {
@@ -96,13 +112,19 @@ static int usart_wch_init(const struct device *dev)
 		return err;
 	}
 	/* Configure while disabled; enable only after clocks/pins/config are valid. */
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+	err = usart_wch_tx_init(dev);
+	if (err != 0) {
+		return err;
+	}
+#endif
 	regs->CTLR1 = 0;
 	regs->CTLR2 = 0;
 	regs->CTLR3 = 0;
 	regs->BRR = divn;
 	regs->CTLR1 = ctlr1;
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_WCH_UART_ASYNC_TX)
 	config->irq_config_func(dev);
 #endif
 
@@ -124,6 +146,9 @@ static int usart_wch_poll_in(const struct device *dev, unsigned char *ch)
 
 static void usart_wch_poll_out(const struct device *dev, unsigned char ch)
 {
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+	usart_wch_tx_poll_out(dev, ch);
+#else
 	const struct usart_wch_config *config = dev->config;
 	USART_TypeDef *regs = config->regs;
 
@@ -131,6 +156,7 @@ static void usart_wch_poll_out(const struct device *dev, unsigned char ch)
 	}
 
 	regs->DATAR = ch;
+#endif
 }
 
 static int usart_wch_err_check(const struct device *dev)
@@ -310,6 +336,14 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 	.poll_in = usart_wch_poll_in,
 	.poll_out = usart_wch_poll_out,
 	.err_check = usart_wch_err_check,
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+	.callback_set = usart_wch_async_callback_set,
+	.tx = usart_wch_tx,
+	.tx_abort = usart_wch_tx_abort,
+	.rx_enable = usart_wch_rx_unsupported,
+	.rx_buf_rsp = usart_wch_rx_buf_unsupported,
+	.rx_disable = usart_wch_rx_disable_unsupported,
+#endif
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	.fifo_fill = usart_wch_fifo_fill,
 	.fifo_read = usart_wch_fifo_read,
@@ -327,7 +361,7 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 #endif
 };
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_WCH_UART_ASYNC_TX)
 #define USART_WCH_IRQ_HANDLER_DECL(idx)                                                            \
 	static void usart_wch_irq_config_func_##idx(const struct device *dev);
 
@@ -336,7 +370,7 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 #define USART_WCH_IRQ_HANDLER(idx)                                                                 \
 	static void usart_wch_irq_config_func_##idx(const struct device *dev)                      \
 	{                                                                                          \
-		IRQ_CONNECT(DT_INST_IRQN(idx), DT_INST_IRQ(idx, priority), usart_wch_isr,        \
+		IRQ_CONNECT(DT_INST_IRQN(idx), DT_INST_IRQ(idx, priority), usart_wch_isr,          \
 			    DEVICE_DT_INST_GET(idx), 0);                                           \
 		irq_enable(DT_INST_IRQN(idx));                                                     \
 	}
@@ -348,12 +382,19 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 
 #ifdef CONFIG_WCH_UART_DMA_PREPARE
 #define USART_WCH_DMA_CHECK(idx) WCH_UART_DMA_DT_CHECK(idx)
-#define USART_WCH_DMA_CONFIG(idx)                                                                 \
+#define USART_WCH_DMA_CONFIG(idx)                                                                  \
 	.dma_tx_dev = DEVICE_DT_GET(WCH_DMA_CTLR(idx, tx)),                                        \
 	.dma_rx_dev = DEVICE_DT_GET(WCH_DMA_CTLR(idx, rx)),
 #else
 #define USART_WCH_DMA_CHECK(idx)
 #define USART_WCH_DMA_CONFIG(idx)
+#endif
+
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+#define USART_WCH_TX_CONFIG(idx)                                                                   \
+	.dma_tx_channel = WCH_DMA_CH(idx, tx), .dma_rx_channel = WCH_DMA_CH(idx, rx),
+#else
+#define USART_WCH_TX_CONFIG(idx)
 #endif
 
 #define USART_WCH_INIT(idx)                                                                        \
@@ -371,8 +412,8 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 		.clock_dev = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(idx)),                              \
 		.clock_id = DT_INST_CLOCKS_CELL(idx, id),                                          \
 		.pin_cfg = PINCTRL_DT_INST_DEV_CONFIG_GET(idx),                                    \
-		USART_WCH_DMA_CONFIG(idx)                                                         \
-		USART_WCH_IRQ_HANDLER_FUNC(idx)};                                                  \
+		USART_WCH_DMA_CONFIG(idx) USART_WCH_TX_CONFIG(idx)                                 \
+			USART_WCH_IRQ_HANDLER_FUNC(idx)};                                          \
 	DEVICE_DT_INST_DEFINE(idx, &usart_wch_init, NULL, &usart_wch_##idx##_data,                 \
 			      &usart_wch_##idx##_config, PRE_KERNEL_1,                             \
 			      CONFIG_SERIAL_INIT_PRIORITY, &usart_wch_driver_api);                 \

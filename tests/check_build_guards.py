@@ -19,6 +19,11 @@ def main():
     cases = [
         ("duplicate-driver", ["-DCONFIG_UART_WCH_USART=y"], "Disable CONFIG_UART_WCH_USART"),
         ("duplicate-dma-driver", ["-DCONFIG_DMA_WCH=y"], "Disable CONFIG_DMA_WCH"),
+        ("async-with-irq", ["-DCONFIG_UART_ASYNC_API=y", "-DCONFIG_WCH_UART_ASYNC_TX=y",
+                            "-DCONFIG_UART_INTERRUPT_DRIVEN=y"], "WCH async TX requires"),
+        ("async-wide-data", ["-DCONFIG_UART_ASYNC_API=y", "-DCONFIG_WCH_UART_ASYNC_TX=y",
+                             "-DCONFIG_UART_INTERRUPT_DRIVEN=n", "-DCONFIG_UART_WIDE_DATA=y"],
+         "WCH async TX requires"),
         ("init-order", ["-DCONFIG_DMA_INIT_PRIORITY=60"], "DMA must initialize before UART"),
         ("bad-channel", [], "DMA channel index is out of range"),
         ("wrong-request", [], "Incorrect CH32V203 UART DMA request mapping"),

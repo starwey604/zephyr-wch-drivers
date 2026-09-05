@@ -90,8 +90,8 @@ bank is software-tested, not a claim of support for other series/DMA2.
 Still required: real copies/IRQ delivery, suspend/resume position retention,
 UART request gating, cyclic wrap/overrun stress, dual-port load and recovery.
 
-Next: reserve USART1/2 channels, implement UART TX, abort/timeout, and finish
-TX at **USART TC**, not DMA TC. RX follows separately.
+The [TX increment](uart-tx.md) now reserves USART1/2 channels and implements TX,
+abort/deadline handling, with DONE at **USART TC**, not DMA TC. RX follows separately.
 
 References: [Zephyr DMA expectations](https://docs.zephyrproject.org/latest/hardware/peripherals/dma.html),
 [v4.4.0 API](https://github.com/zephyrproject-rtos/zephyr/blob/v4.4.0/include/zephyr/drivers/dma.h).

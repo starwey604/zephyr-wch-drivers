@@ -14,6 +14,11 @@ common:
   harness: ztest
   build_only: true
 tests:
+  wch.uart_dma.tx:
+    extra_configs:
+      - CONFIG_UART_INTERRUPT_DRIVEN=n
+      - CONFIG_UART_ASYNC_API=y
+      - CONFIG_WCH_UART_ASYNC_TX=y
   wch.uart_dma.scaffold.interrupt: {}
   wch.uart_dma.scaffold.polling:
     extra_configs:

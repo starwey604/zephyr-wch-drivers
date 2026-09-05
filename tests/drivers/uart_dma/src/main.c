@@ -56,7 +56,7 @@ ZTEST(wch_uart_dma, test_dma_request_wiring)
 ZTEST(wch_uart_dma, test_async_dma_loopback_pending)
 {
 	/* No fake success: enabling DMA1 does not implement the UART async API. */
-	TC_PRINT("SKIP: UART async DMA transfers are not implemented yet\n");
+	TC_PRINT("SKIP: async RX and loopback qualification are not implemented yet\n");
 	ztest_test_skip();
 }
 
@@ -68,6 +68,13 @@ ZTEST(wch_uart_dma, test_fixed_request_allocation)
 		const struct device *controller = dma_requests[i].controller;
 		int channel = dma_request_channel(controller, &requested);
 
+#ifdef CONFIG_WCH_UART_ASYNC_TX
+		if (channel >= 0) {
+			dma_release_channel(controller, channel);
+		}
+		zassert_equal(channel, -EINVAL, "Async UART must reserve its fixed DMA channels");
+		continue;
+#endif
 		if (channel != (int)requested) {
 			if (channel >= 0) {
 				dma_release_channel(controller, channel);

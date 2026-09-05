@@ -7,7 +7,8 @@ validation target. This is a downstream project, not an official WCH driver pack
 ## Status
 
 This revision provides Zephyr module integration, an opt-in community UART
-baseline and test scaffolding. **It does not implement UART DMA or USB UDC yet.**
+baseline, experimental UART DMA TX and test scaffolding.
+**Async RX and USB UDC are not implemented; no hardware is qualified yet.**
 
 | Component | Status |
 | --- | --- |
@@ -15,7 +16,8 @@ baseline and test scaffolding. **It does not implement UART DMA or USB UDC yet.*
 | External polling/interrupt UART baseline | Imported; compile-tested only |
 | UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
 | External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
-| UART asynchronous TX/RX using DMA | Planned |
+| UART asynchronous TX using DMA | Opt-in; TC completion, abort/deadline, native tests |
+| UART asynchronous RX using DMA | Not implemented; explicitly returns ENOTSUP in TX mode |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Planned |
 | ztest / Twister test structure | UART smoke checks and explicit DMA/USB skips |
 | Hardware validation | Pending |
@@ -23,7 +25,8 @@ baseline and test scaffolding. **It does not implement UART DMA or USB UDC yet.*
 Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
 alone adds no driver code. To use the external UART baseline, explicitly set
 `CONFIG_UART_WCH_USART=n` and `CONFIG_WCH_UART=y`. The two UART drivers must
-never own the same DT devices simultaneously. No async capability is advertised.
+never own the same DT devices simultaneously. Async TX requires its separate
+opt-in option; build-time async capability does not imply full async RX support.
 
 `CONFIG_WCH_UART_DMA_PREPARE=y` additionally validates USART1/2 DMA resources
 when `CONFIG_DMA=y`; it does not enable asynchronous transfers. Current framing
@@ -35,6 +38,13 @@ The [DMA prerequisite increment](docs/dma-driver.md) addresses those limitations
 inside this module: enable `CONFIG_WCH_DMA=y` with `CONFIG_DMA_WCH=n` and
 `CONFIG_DMA=y`. Duplicate DMA drivers are rejected at configuration time.
 This is a general DMA replacement, **not** a UART async implementation.
+
+The [TX increment](docs/uart-tx.md) adds `CONFIG_WCH_UART_ASYNC_TX=y` together
+with `CONFIG_UART_ASYNC_API=y` on top of that replacement. Disable
+`UART_INTERRUPT_DRIVEN` and `UART_WIDE_DATA` in this mode. DONE waits for
+USART TC; ABORTED reports DMA-fed bytes, and a draining UART rejects new TX
+until TC. Read the deadline, buffer-lifetime and callback-context boundaries
+before using this experimental TX-only API.
 
 ## Repository layout
 
@@ -112,7 +122,7 @@ used the C++20 settings above. This verifies module integration, not hardware.
 
 The UART import is additionally compiled in polling and interrupt variants by
 Twister, together with DMA hardware tests and the USB placeholder (build-only).
-The DMA implementation also has executable native_sim register/state tests.
+The DMA and UART TX implementations also have executable native_sim tests.
 See [test instructions](tests/README.md) for commands and hardware-test gaps.
 
 ## Community work and provenance

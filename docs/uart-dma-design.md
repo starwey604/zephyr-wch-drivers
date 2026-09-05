@@ -4,7 +4,8 @@
 
 Update: the [out-of-tree DMA prerequisite](dma-driver.md) now addresses the
 upstream DMA findings below. This document preserves the round-1 audit;
-UART async TX/RX still have not been implemented.
+The [TX-only increment](uart-tx.md) now implements TX/abort/deadline handling;
+async RX remains pending. The notes below describe the historical plan.
 
 Round 1 adds validation and a testable arithmetic boundary, NOT asynchronous
 transfers. `WCH_UART_DMA_PREPARE` checks DMA resources but neither starts nor
@@ -136,6 +137,9 @@ gap. Decide direct double-buffer versus internal circular staging from measured
 latency, CPU load and Gello's 20 KiB RAM budget in the continuous-RX stage.
 
 ## Next increment
+
+Historical plan below: TX is now implemented as described in [uart-tx.md](uart-tx.md).
+The next work is async RX, not another TX implementation.
 
 Implement TX callback registration, fixed DMA channel ownership/configuration,
 `uart_tx()` and `uart_tx_abort()`, followed by UART TC completion. Keep RX
