@@ -1,0 +1,5 @@
+/build*/
+/twister-out*/
+/.venv/
+__pycache__/
+*.pyc

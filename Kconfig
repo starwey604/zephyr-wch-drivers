@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig WCH_DRIVERS
+	bool "Out-of-tree WCH drivers"
+	depends on SOC_CH32V203
+	help
+	  Enable the external WCH driver module. Initial development targets
+	  CH32V203, with CH32V203F8U6 as the first hardware validation target.
+	  This initial scaffold contains no peripheral driver implementations.
+	  Enabling it does not change the upstream UART or enable USB support.
