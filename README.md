@@ -14,6 +14,7 @@ baseline and test scaffolding. **It does not implement UART DMA or USB UDC yet.*
 | CMake / Kconfig / DTS module registration | Available |
 | External polling/interrupt UART baseline | Imported; compile-tested only |
 | UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
+| External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
 | UART asynchronous TX/RX using DMA | Planned |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Planned |
 | ztest / Twister test structure | UART smoke checks and explicit DMA/USB skips |
@@ -30,9 +31,15 @@ support is explicitly 8N1 without hardware flow control. See the
 [round-1 design and audit](docs/uart-dma-design.md) for ownership, locking,
 version compatibility and known upstream DMA limitations.
 
+The [DMA prerequisite increment](docs/dma-driver.md) addresses those limitations
+inside this module: enable `CONFIG_WCH_DMA=y` with `CONFIG_DMA_WCH=n` and
+`CONFIG_DMA=y`. Duplicate DMA drivers are rejected at configuration time.
+This is a general DMA replacement, **not** a UART async implementation.
+
 ## Repository layout
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
+- `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.
 - `dts/`: future bindings and SoC additions; existing UART bindings are reused.
 - `tests/`: standalone ztest applications, Twister scenarios and host-fixture
   plans; see [test instructions](tests/README.md).
@@ -86,7 +93,8 @@ can include this module without enabling WCH support.
 - Expose standard Zephyr UART and USB device APIs to applications.
 - When enabling the UART replacement, explicitly disable upstream
   `CONFIG_UART_WCH_USART` and reject configurations enabling both drivers.
-- Reuse `hal_wch` register definitions and the upstream general DMA driver.
+- Reuse `hal_wch` register definitions. Keep DMA fixes in the opt-in module
+  replacement; do not patch the application's Zephyr checkout during builds.
 - Pin Zephyr, HAL and this module in the consuming manifest. Test supported
   combinations before updating; out-of-tree UDC code can depend on changing
   Zephyr internal interfaces.
@@ -103,7 +111,8 @@ Compile-only integration checks passed in the complete west workspace:
 used the C++20 settings above. This verifies module integration, not hardware.
 
 The UART import is additionally compiled in polling and interrupt variants by
-Twister, together with the USB placeholder (three configurations, none run).
+Twister, together with DMA hardware tests and the USB placeholder (build-only).
+The DMA implementation also has executable native_sim register/state tests.
 See [test instructions](tests/README.md) for commands and hardware-test gaps.
 
 ## Community work and provenance

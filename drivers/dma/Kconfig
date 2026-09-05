@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config WCH_DMA
+	bool "Out-of-tree CH32V203 DMA driver"
+	depends on DMA && DT_HAS_WCH_WCH_DMA_ENABLED
+	help
+	  Opt-in replacement for DMA_WCH. Supports fixed channel allocation,
+	  single blocks and peripheral circular transfers. Disable DMA_WCH
+	  explicitly; both drivers instantiate the same devicetree devices.

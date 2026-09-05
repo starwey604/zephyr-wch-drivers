@@ -2,6 +2,10 @@
 
 ## Status and scope
 
+Update: the [out-of-tree DMA prerequisite](dma-driver.md) now addresses the
+upstream DMA findings below. This document preserves the round-1 audit;
+UART async TX/RX still have not been implemented.
+
 Round 1 adds validation and a testable arithmetic boundary, NOT asynchronous
 transfers. `WCH_UART_DMA_PREPARE` checks DMA resources but neither starts nor
 reserves channels. `SERIAL_SUPPORT_ASYNC` is deliberately not selected; there
@@ -51,11 +55,13 @@ tables or assume the entire API/header is byte-identical.
   numbers channels starting at 1, while the Zephyr driver starts at 0.
 - These checks do not allocate channels or protect against a different driver
   claiming them. Stage 2 must resolve exclusive fixed-channel ownership before
-  enabling requests. The current WCH DMA driver has no channel filter:
+  enabling requests. The pinned upstream WCH DMA driver has no channel filter:
   `dma_request_channel()` chooses a free channel, not necessarily the fixed
   hardware request. Do not pass a desired channel and assume it is honored.
   Use an explicit static ownership policy, or separately implement and test
   fixed-channel filtering; never manipulate another driver's private bitmap.
+  The external `WCH_DMA` replacement now implements this filter using a
+  `uint32_t *` zero-based channel index and is enabled in the preparation tests.
 - Applications own buffer storage; driver ownership is a temporary loan.
   During a loan, applications must not modify TX or recycle RX memory.
 

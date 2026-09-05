@@ -5,3 +5,7 @@ if(CONFIG_WCH_UART AND CONFIG_UART_WCH_USART)
 endif()
 
 add_subdirectory_ifdef(CONFIG_WCH_UART serial)
+if(CONFIG_WCH_DMA AND CONFIG_DMA_WCH)
+  message(FATAL_ERROR "Disable CONFIG_DMA_WCH before enabling CONFIG_WCH_DMA")
+endif()
+add_subdirectory_ifdef(CONFIG_WCH_DMA dma)

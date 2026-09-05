@@ -18,6 +18,7 @@ def main():
     source = module / "tests/drivers/uart_dma"
     cases = [
         ("duplicate-driver", ["-DCONFIG_UART_WCH_USART=y"], "Disable CONFIG_UART_WCH_USART"),
+        ("duplicate-dma-driver", ["-DCONFIG_DMA_WCH=y"], "Disable CONFIG_DMA_WCH"),
         ("init-order", ["-DCONFIG_DMA_INIT_PRIORITY=60"], "DMA must initialize before UART"),
         ("bad-channel", [], "DMA channel index is out of range"),
         ("wrong-request", [], "Incorrect CH32V203 UART DMA request mapping"),

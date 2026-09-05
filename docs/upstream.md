@@ -46,6 +46,13 @@ patched and no additional board hardware is qualified by this fixture.
   Follow-up changes provide opt-in registration and CH32V203 fixes independently
   of the Zephyr checkout. No SoC or core patches are applied during builds.
 
+Local fixes now include fixed-channel filtering/release, explicit state tracking,
+16-bit element-count and width/alignment validation, half-completion API
+semantics, cyclic TC preservation, error-first cleanup and stale-flag clearing.
+Native tests execute the modified source with a fake register bank. The external
+driver uses `CONFIG_WCH_DMA`; it must not coexist with `CONFIG_DMA_WCH`.
+See [the DMA contract](dma-driver.md) for supported modes and hardware gaps.
+
 ## USB
 
 No USB implementation is imported in this revision. The community branch's

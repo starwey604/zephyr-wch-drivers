@@ -1,7 +1,8 @@
 # Driver test bring-up
 
 These are Zephyr ztest/Twister applications for future hardware qualification,
-plus executable host tests. **Host tests exercise pure helpers, not hardware.**
+plus executable host tests. **Host tests exercise helpers or modeled registers,
+not hardware.**
 Nothing is flashed automatically; no UART DMA or USB transfer is validated.
 
 ## Layout and current coverage
@@ -13,10 +14,13 @@ Nothing is flashed automatically; no UART DMA or USB transfer is validated.
 | `host` | Host-fixture requirements only | UART traffic generator and USB bulk exerciser |
 | `configs` | Optional Ragtime C++20 workspace compatibility fragment | Keep product-only dependencies out of test defaults |
 | `unit/uart_contract` | Host CTest: BRR arithmetic, DMA lengths, RX progress | Extend with state/IRQ tests as implementation arrives |
-| `check_build_guards.py` | Six negative builds requiring specific diagnostics | Extend invalid resource/configuration coverage |
+| `unit/dma_native` | Production DMA driver + real Zephyr API, fake registers; 12 executed tests | Real PFIC/bus timing, request gating |
+| `drivers/dma` | Bounded 8/16/32-bit memory-copy test, currently compile-only | Run on DMA1 with debugger result capture |
+| `check_build_guards.py` | Seven negative builds requiring specific diagnostics | Extend invalid resource/configuration coverage |
 
 `tests.yaml` registers UART interrupt/polling variants and the USB placeholder.
-All are `build_only: true`; skipped cases are not successful transfer tests.
+Hardware applications are `build_only: true`; native_sim is executable.
+Skipped cases are not successful transfer tests.
 The `test-uart0`/`test-uart1` aliases come from the Gello test overlay. The UART
 driver does not consume the DMA mappings yet. A readiness check is not proof
 of correct pin routing, request-channel selection, IRQ delivery or baud rate.
@@ -50,7 +54,9 @@ An empty upstream `drivers__serial` library warning is expected when its only
 driver is disabled in favor of the external UART. Check that the external
 `uart_wch_usart.c` is compiled and `CONFIG_WCH_UART=y` is in `zephyr/.config`.
 Selecting both UART drivers is a configuration error, not an alternate test
-mode: CMake must stop before compiling duplicate device instances.
+mode: CMake must stop before compiling duplicate device instances. The same
+rule applies to `WCH_DMA` versus `DMA_WCH`; DMA and UART tests enable the
+external DMA replacement explicitly.
 
 To compile all scenarios via Twister:
 
@@ -77,9 +83,27 @@ ctest --test-dir build/test-wch-contract --output-on-failure
 The three host suites test the same BRR helper used in driver initialization,
 DMA length limits, and future non-cyclic RX progress arithmetic. They do not
 simulate registers, IRQ delivery, callbacks or buffer ownership. Their checks
-remain enabled with `NDEBUG`. The negative runner checks six specific errors:
-duplicate drivers, init order, channel range, wrong request, missing RX, and
+remain enabled with `NDEBUG`. The negative runner checks seven specific errors:
+duplicate UART/DMA drivers, init order, channel range, wrong request, missing RX, and
 disabled DMA. An unrelated build failure is a test failure, not a pass.
+
+Run the production DMA driver against the native register model:
+
+```sh
+.venv/bin/west twister -T modules/drivers/wch/tests/unit/dma_native \
+  -p native_sim/native/64 --outdir build/test-wch-dma-native-twister \
+  -x EXTRA_CONF_FILE=$PWD/modules/drivers/wch/tests/configs/ragtime-cpp20.conf
+```
+
+This uses the real Zephyr allocator and API, not hand-written API stubs. The
+minimal fake HAL is private to the test target. It explicitly emulates flag
+clearing and injects count/IRQ changes; there is no simulated data transfer.
+
+To compile the hardware DMA memory-copy test, use the same west build options
+as above with `-s modules/drivers/wch/tests/drivers/dma` and
+`-d build/test-wch-dma-hardware`. It requires no loopback cable. It waits at most
+one second per width, checks copied bytes/count and quiesces DMA on failures.
+Do not remove `build_only` until real hardware execution/reporting is available.
 
 ## Release compatibility check
 
@@ -103,7 +127,25 @@ supplies the DMA1 node missing in v4.4.0. This is a compile fixture, not a
 hardware validation or an unmodified release DT configuration. Gello itself
 does not build on that release because its EXTI node is also absent.
 
-## Round-1 verification record
+## DMA prerequisite verification record
+
+Same pinned Zephyr/HAL pairs and SDK as round 1; host compiler GCC 16.2.1.
+
+| Check | Result | Evidence type |
+| --- | --- | --- |
+| DMA native_sim, Ragtime 4.4.99 | 12/12 passed | Production driver with modeled MMIO, executed |
+| DMA native_sim, stock v4.4.0 | 12/12 passed | Production driver with modeled MMIO, executed |
+| UART arithmetic helpers | 3/3 passed | Host CTest |
+| Negative configuration guards | 7/7 expected diagnostics | Compile-failure checks |
+| Gello + BluePill UART IRQ/polling and DMA copy; Gello USB placeholder | 7/7 built | No board execution |
+| v4.4.0 BluePill UART IRQ/polling with DMA1 overlay | 2/2 built | Release compatibility, not Gello |
+| STM32 Florid LED | Built | Module-disabled regression |
+
+No hardware was flashed. Native tests do not prove actual data movement;
+the hardware DMA copy test is implemented but remains unexecuted. UART async
+and USB transfer cases still skip. See [the DMA contract](../docs/dma-driver.md).
+
+## Round-1 verification record (historical)
 
 Zephyr SDK 1.0.1; exact Zephyr/HAL pairs are in the [audit](../docs/uart-dma-design.md).
 

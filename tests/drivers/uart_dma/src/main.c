@@ -6,13 +6,14 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/ztest.h>
 
-#define UART0_NODE DT_ALIAS(test_uart0)
-#define UART1_NODE DT_ALIAS(test_uart1)
-#define DMA_CTLR(node, dir) DT_DMAS_CTLR_BY_NAME(node, dir)
+#define UART0_NODE             DT_ALIAS(test_uart0)
+#define UART1_NODE             DT_ALIAS(test_uart1)
+#define DMA_CTLR(node, dir)    DT_DMAS_CTLR_BY_NAME(node, dir)
 #define DMA_CHANNEL(node, dir) DT_DMAS_CELL_BY_NAME(node, dir, channel)
 
 BUILD_ASSERT(IS_ENABLED(CONFIG_WCH_UART), "This test must exercise the external UART driver");
 BUILD_ASSERT(IS_ENABLED(CONFIG_WCH_UART_DMA_PREPARE), "DMA preparation must be tested");
+BUILD_ASSERT(IS_ENABLED(CONFIG_WCH_DMA), "Use the DMA driver with fixed-channel filtering");
 BUILD_ASSERT(!IS_ENABLED(CONFIG_UART_WCH_USART), "Disable the upstream UART driver");
 BUILD_ASSERT(DT_NODE_HAS_STATUS(UART0_NODE, okay), "test-uart0 must be enabled");
 BUILD_ASSERT(DT_NODE_HAS_STATUS(UART1_NODE, okay), "test-uart1 must be enabled");
@@ -46,7 +47,7 @@ ZTEST(wch_uart_dma, test_dma_request_wiring)
 		zassert_true(device_is_ready(dma_requests[i].controller), "DMA is not ready");
 		for (size_t j = i + 1; j < ARRAY_SIZE(dma_requests); j++) {
 			zassert_false(dma_requests[i].controller == dma_requests[j].controller &&
-				      dma_requests[i].channel == dma_requests[j].channel,
+					      dma_requests[i].channel == dma_requests[j].channel,
 				      "UART DMA requests must not share a channel");
 		}
 	}
@@ -57,6 +58,30 @@ ZTEST(wch_uart_dma, test_async_dma_loopback_pending)
 	/* No fake success: enabling DMA1 does not implement the UART async API. */
 	TC_PRINT("SKIP: UART async DMA transfers are not implemented yet\n");
 	ztest_test_skip();
+}
+
+ZTEST(wch_uart_dma, test_fixed_request_allocation)
+{
+	/* The prepare-only UART driver has not reserved these channels yet. */
+	ARRAY_FOR_EACH(dma_requests, i) {
+		uint32_t requested = dma_requests[i].channel;
+		const struct device *controller = dma_requests[i].controller;
+		int channel = dma_request_channel(controller, &requested);
+
+		if (channel != (int)requested) {
+			if (channel >= 0) {
+				dma_release_channel(controller, channel);
+			}
+			zassert_unreachable("Fixed channel %u was not allocated", requested);
+		}
+		int duplicate = dma_request_channel(controller, &requested);
+
+		dma_release_channel(controller, channel);
+		if (duplicate >= 0) {
+			dma_release_channel(controller, duplicate);
+		}
+		zassert_equal(duplicate, -EINVAL, "A fixed channel must have one owner");
+	}
 }
 
 ZTEST_SUITE(wch_uart_dma, NULL, NULL, NULL, NULL, NULL);
