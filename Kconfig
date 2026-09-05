@@ -6,5 +6,9 @@ menuconfig WCH_DRIVERS
 	help
 	  Enable the external WCH driver module. Initial development targets
 	  CH32V203, with CH32V203F8U6 as the first hardware validation target.
-	  This initial scaffold contains no peripheral driver implementations.
-	  Enabling it does not change the upstream UART or enable USB support.
+	  Individual peripheral drivers must be enabled separately.
+	  Enabling this option alone does not replace upstream drivers.
+
+if WCH_DRIVERS
+rsource "drivers/Kconfig"
+endif

@@ -6,18 +6,31 @@ validation target. This is a downstream project, not an official WCH driver pack
 
 ## Status
 
-This first revision provides the Zephyr module scaffolding and west integration
-only. **It does not implement UART DMA or USB UDC yet.**
+This revision provides Zephyr module integration, an opt-in community UART
+baseline and test scaffolding. **It does not implement UART DMA or USB UDC yet.**
 
 | Component | Status |
 | --- | --- |
 | CMake / Kconfig / DTS module registration | Available |
+| External polling/interrupt UART baseline | Imported; compile-tested only |
 | UART asynchronous TX/RX using DMA | Planned |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Planned |
+| ztest / Twister test structure | UART smoke checks and explicit DMA/USB skips |
 | Hardware validation | Pending |
 
-Existing upstream polling/interrupt UART and DMA drivers are not replaced by
-this scaffold. Enabling `CONFIG_WCH_DRIVERS=y` currently adds no driver code.
+Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
+alone adds no driver code. To use the external UART baseline, explicitly set
+`CONFIG_UART_WCH_USART=n` and `CONFIG_WCH_UART=y`. The two UART drivers must
+never own the same DT devices simultaneously. No async capability is advertised.
+
+## Repository layout
+
+- `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
+- `dts/`: future bindings and SoC additions; existing UART bindings are reused.
+- `tests/`: standalone ztest applications, Twister scenarios and host-fixture
+  plans; see [test instructions](tests/README.md).
+- `docs/upstream.md`: pinned import provenance and local-change notes.
+- `zephyr/module.yml`: west/Zephyr module discovery.
 
 ## Integration
 
@@ -64,7 +77,7 @@ can include this module without enabling WCH support.
 - Keep hardware drivers in `drivers/`, DT bindings and SoC additions in `dts/`.
 - Keep board wiring, application policy, and protocols in the product repository.
 - Expose standard Zephyr UART and USB device APIs to applications.
-- When implementing the UART replacement, explicitly disable upstream
+- When enabling the UART replacement, explicitly disable upstream
   `CONFIG_UART_WCH_USART` and reject configurations enabling both drivers.
 - Reuse `hal_wch` register definitions and the upstream general DMA driver.
 - Pin Zephyr, HAL and this module in the consuming manifest. Test supported
@@ -82,13 +95,18 @@ Compile-only integration checks passed in the complete west workspace:
 `ragtime_florid` with Ragtime's `apps/led` and the WCH option disabled. Both
 used the C++20 settings above. This verifies module integration, not hardware.
 
+The UART import is additionally compiled in polling and interrupt variants by
+Twister, together with the USB placeholder (three configurations, none run).
+See [test instructions](tests/README.md) for commands and hardware-test gaps.
+
 ## Community work and provenance
 
 Potential implementation references include
 [WCH platform planning](https://github.com/zephyrproject-rtos/zephyr/discussions/110177),
 [USBFS PR #94286](https://github.com/zephyrproject-rtos/zephyr/pull/94286), and
 [BOJIT's USB branch](https://github.com/BOJIT/zephyr/tree/driver/ch32_usb).
-No driver source has been imported from these projects in this initial revision.
+The UART baseline was imported from the pinned BOJIT branch snapshot documented
+in [upstream provenance](docs/upstream.md). No USB source has been imported.
 
 Before importing code, record the exact repository, commit and original paths;
 retain author/license notices and document local modifications. Keep changes

@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+tests:
+  wch.usb_endpoints.scaffold:
+    tags:
+      - usb
+      - wch
+    platform_allow:
+      - ragtime_gello/ch32v203
+    integration_platforms:
+      - ragtime_gello/ch32v203
+    harness: ztest
+    build_only: true

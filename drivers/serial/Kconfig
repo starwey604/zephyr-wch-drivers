@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config WCH_UART
+	bool "External WCH USART polling/interrupt baseline"
+	depends on SERIAL
+	depends on DT_HAS_WCH_USART_ENABLED
+	select SERIAL_HAS_DRIVER
+	select SERIAL_SUPPORT_INTERRUPT
+	select PINCTRL
+	help
+	  Opt-in downstream copy of the community WCH USART driver, for
+	  CH32V203 bring-up. Disable UART_WCH_USART explicitly to avoid two
+	  drivers owning the same devicetree nodes. Polling and interrupt
+	  APIs are present; asynchronous UART/DMA is NOT implemented yet.
+	  This driver has only been compile-tested, not hardware-validated.

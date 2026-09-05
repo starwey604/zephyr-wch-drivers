@@ -1,0 +1,8 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/ {
+	aliases {
+		test-uart0 = &usart1;
+		test-uart1 = &usart2;
+	};
+};

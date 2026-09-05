@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+
+common:
+  tags:
+    - drivers
+    - uart
+    - dma
+    - wch
+  platform_allow:
+    - ragtime_gello/ch32v203
+  integration_platforms:
+    - ragtime_gello/ch32v203
+  harness: ztest
+  build_only: true
+tests:
+  wch.uart_dma.scaffold.interrupt: {}
+  wch.uart_dma.scaffold.polling:
+    extra_configs:
+      - CONFIG_UART_INTERRUPT_DRIVEN=n

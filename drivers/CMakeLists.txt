@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
-# Add peripheral subdirectories here when their drivers are implemented.
-# Each driver must have its own opt-in Kconfig symbol and DT dependencies.
+if(CONFIG_WCH_UART AND CONFIG_UART_WCH_USART)
+  message(FATAL_ERROR "Disable CONFIG_UART_WCH_USART before enabling CONFIG_WCH_UART")
+endif()
+
+add_subdirectory_ifdef(CONFIG_WCH_UART serial)
