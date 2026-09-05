@@ -36,6 +36,16 @@ status is explicit, and the overlay supplies USART1/2 test wiring. It fills
 a missing release DT declaration for compile testing; no SoC/core files are
 patched and no additional board hardware is qualified by this fixture.
 
+## DMA baseline
+
+- Repository: https://github.com/zephyrproject-rtos/zephyr
+- Exact commit: `577e42ad187825cc30d4b51423c32872eb4cf054`
+- Original and local path: `drivers/dma/dma_wch.c`
+- License: Apache-2.0; Paul Wedeck's original copyright retained.
+- The initial import is byte-for-byte identical and deliberately not enabled.
+  Follow-up changes provide opt-in registration and CH32V203 fixes independently
+  of the Zephyr checkout. No SoC or core patches are applied during builds.
+
 ## USB
 
 No USB implementation is imported in this revision. The community branch's
