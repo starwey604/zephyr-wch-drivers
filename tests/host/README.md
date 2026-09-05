@@ -1,16 +1,26 @@
-# Host-side fixtures (planned)
+# Host-side fixtures
 
-No host executable is supplied yet: the target has no USB UDC/bulk class and
-the UART driver has no asynchronous DMA API. Add scripts alongside the first
-working target implementation, so host and device agree on their protocol.
+`usb_endpoints.py` performs targeted EP0/bulk/STALL checks on a physical DUT;
+see [the USB runbook](../../docs/usb-udc.md). PyUSB/libusb are needed only for
+hardware execution. No device is accessed by these software tests:
 
-- UART: configurable ports/baud; framed sequence number, length and checksum;
-  simultaneous bidirectional traffic, bounded timeouts and explicit failures.
-- USB: require explicit VID/PID and interface/endpoint selection; vendor-specific
-  bulk echo with payload lengths 0, 1, 63, 64, 65 and multi-packet transfers.
-- Exercise reconnect/reset, stalls/recovery and repeated transfers separately.
-- Never auto-flash devices or auto-detach unrelated host kernel drivers.
+```sh
+python -m unittest discover -s tests/host -p test_usb_endpoints.py
+python -O -m unittest discover -s tests/host -p test_usb_endpoints.py
+```
 
-Do not assign a production VID/PID in test code. Use an appropriately authorized
-development identity when the USB class is added. Keep captures/results outside
-source control unless intentionally reviewed as test evidence.
+The runner requires an explicit DUT bus/address and validates its identity and
+endpoints before configuration writes. It never flashes devices or automatically
+detaches kernel drivers. Test VID/PID are laboratory placeholders, not a
+production allocation. Keep captures/results outside source control unless
+intentionally reviewed as test evidence.
+
+## Remaining fixtures
+
+- UART host traffic generator: configurable ports/baud, framed sequence number,
+  length/checksum, simultaneous bidirectional traffic and bounded failures.
+- USB sustained traffic, reconnect/reset and suspend/resume qualification.
+  The current runner requests an optional reset but requires a separate rerun
+  to verify re-enumeration.
+
+Hardware tests have not been executed; fake-API tests do not qualify transfers.

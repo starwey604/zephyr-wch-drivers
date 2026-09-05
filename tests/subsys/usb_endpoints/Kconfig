@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+mainmenu "WCH USBFS hardware fixture"
+source "Kconfig.zephyr"
+config WCH_TEST_USB_VID
+	hex "Temporary laboratory VID (replace for products)"
+	default 0x1209
+config WCH_TEST_USB_PID
+	hex "Temporary laboratory PID (not allocated to this project)"
+	default 0xffff

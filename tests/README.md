@@ -10,20 +10,23 @@ Nothing is flashed automatically; no UART DMA or USB transfer is validated.
 | Directory | Current behavior | Next hardware checks |
 | --- | --- | --- |
 | `drivers/uart_dma` | Readiness/ownership, optional TX and paced local RX loopback | Capture dual-UART bytes/baud, tail/abort, RX timing |
-| `subsys/usb_endpoints` | EP0 and bulk cases explicitly skip; no USB stack/UDC | Enumeration, bulk IN/OUT, endpoint DMA, reset/reconnect |
-| `host` | Host-fixture requirements only | UART traffic generator and USB bulk exerciser |
+| `subsys/usb_endpoints` | Real vendor EP0/bulk echo firmware; build-only | Enumeration, DMA bytes/timing, reset/reconnect |
+| `host` | Targeted PyUSB runner + 4 executable host-script tests | Execute USB checks on the DUT; UART host generator pending |
 | `configs` | Optional Ragtime C++20 workspace compatibility fragment | Keep product-only dependencies out of test defaults |
 | `unit/uart_contract` | Host CTest: BRR arithmetic, DMA lengths, RX progress | Extend with state/IRQ tests as implementation arrives |
 | `unit/dma_native` | Production DMA driver + real Zephyr API, fake registers; 12 executed tests | Real PFIC/bus timing, request gating |
+| `unit/udc_native` | Production UDC/common API, fake MMIO; 18 executed tests | Real USB SIE/DMA/clock/pad behavior |
 | `unit/uart_tx_native` | Shared production UART fixture; TX-only 20, RX-enabled 35 tests | Actual DMA requests, wire timing and stress |
 | `drivers/dma` | Bounded 8/16/32-bit memory-copy test, currently compile-only | Run on DMA1 with debugger result capture |
-| `check_build_guards.py` | Nine negative builds requiring specific diagnostics | Extend invalid resource/configuration coverage |
+| `check_build_guards.py` | Twelve negative builds requiring specific diagnostics | UART/DMA config plus USB SDI/clock/address guards |
 
-`tests.yaml` registers UART interrupt/polling/TX/RX variants and the USB placeholder.
+`tests.yaml` registers UART interrupt/polling/TX/RX variants and USB bulk firmware.
 Hardware applications are `build_only: true`; native_sim is executable.
+The USB firmware is not a ztest app: the host performs its assertions. See
+[USB build, host commands and safety gates](../docs/usb-udc.md) before flashing.
 Skipped cases are not successful transfer tests.
 The `test-uart0`/`test-uart1` aliases come from the Gello test overlay. The UART
-driver reserves/uses DMA in TX mode only. A readiness check is not proof
+driver uses DMA only in the explicit asynchronous TX/RX variants. A readiness check is not proof
 of correct pin routing, request-channel selection, IRQ delivery or baud rate.
 
 ## Build in the Ragtime dev workspace
@@ -96,13 +99,14 @@ ctest --test-dir build/test-wch-contract --output-on-failure
   --workspace "$PWD" --sdk /home/ww/zephyr-sdk-1.0.1
 ```
 
-The three host suites test the same BRR helper used in driver initialization,
+The three CTest suites test the same BRR helper used in driver initialization,
 DMA length limits, and future non-cyclic RX progress arithmetic. They do not
 simulate registers, IRQ delivery, callbacks or buffer ownership. Their checks
-remain enabled with `NDEBUG`. The negative runner checks nine specific errors:
+remain enabled with `NDEBUG`. The negative runner checks twelve specific errors:
 duplicate UART/DMA drivers, init order, channel range, wrong request, missing RX, and
 disabled DMA, plus IRQ/async and wide-data/async conflicts. An unrelated build
-failure is a test failure, not a pass.
+failure is a test failure, not a pass. USB adds missing SDI-release opt-in,
+wrong USB clock and accidental use of the USBD address instead of USBFS.
 
 Run the production DMA driver against the native register model:
 
@@ -153,6 +157,28 @@ checks. The BluePill overlay disables USART3/console, wires USART1/2, and
 supplies the DMA1 node missing in v4.4.0. This is a compile fixture, not a
 hardware validation or an unmodified release DT configuration. Gello itself
 does not build on that release because its EXTI node is also absent.
+
+## USB increment verification record
+
+Same Zephyr/HAL revisions and SDK as the RX record below; neither checkout is
+patched. All hardware results remain **NOT RUN**.
+
+| Check | Result | Evidence type |
+| --- | --- | --- |
+| UDC native, current 4.4.99 / official 4.4.0 | 18/18 each | Production UDC/common API, modeled registers |
+| Full current native matrix | 85/85 | UART TX 20 + RX 35 + DMA 12 + UDC 18 |
+| Gello + BluePill board matrix | 12/12 built | UART polling/IRQ/TX/RX, DMA copy, USB on each board |
+| Host USB script, normal / Python `-O` | 4/4 each | Fake USB API; no physical device access |
+| Negative configuration guards | 12/12 | Specific expected build diagnostics |
+| Current Gello USB / release BluePill USB | Built | ROM 37,648 / 34,192 B; RAM 14,328 / 14,056 B |
+| STM32 Florid LED | Built | Module-disabled regression |
+
+Local evidence: `build/test-wch-usb-matrix/`, `build/test-wch-udc-native/`,
+`build/test-wch-udc-native-v440/`, `build/test-wch-usb-hil-dev/`,
+`build/test-wch-usb-v440/` and `build/test-wch-usb-stm32/`. Final UDC lifecycle
+adjustments were rerun in both native fixtures and both USB firmware builds
+after the full regression matrix. See the [USB runbook](../docs/usb-udc.md)
+for the intentionally unverified clock/SIE/DMA/pad assumptions and joint gates.
 
 ## RX increment verification record
 
@@ -245,8 +271,8 @@ UART DMA transfer and USB cases remain explicit skips. No hardware was flashed.
 3. USB fixture: data-capable cable and host test process. Gello USB shares pins
    with SDI; disconnect the debugger from the USB pair before enumeration and
    retain NRST access for recovery. Do not configure USB metadata as GPIOs.
-4. Replace placeholder skips with real assertions only as drivers arrive. Add
-   fixture metadata, bounded waits and reliable result capture before removing
-   `build_only`. Exercise USB packet boundaries and reconnects independently.
+4. Keep `build_only` until real execution and reliable result capture exist.
+   USB assertions are in the host runner, not the firmware status marker;
+   follow the USB runbook for packet boundaries and independent reconnect tests.
 5. Record board revision, wiring, Zephyr/HAL/module SHAs, firmware config,
    host command and captured results. Build logs alone are not HIL evidence.

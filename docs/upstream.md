@@ -62,6 +62,12 @@ See [the DMA contract](dma-driver.md) for supported modes and hardware gaps.
 
 ## USB
 
-No USB implementation is imported in this revision. The community branch's
-`drivers/usb/udc/udc_wch.c` remains a reference for a later, separately reviewed
-port. Endpoint DMA belongs to USBFS, not the general DMA1 controller.
+Reference: BOJIT/zephyr `dc53b3104fbbe6db5d35d3276d281ffdc3da6483`,
+`drivers/usb/udc/udc_wch.c`, Bootlin 2025, Apache-2.0. Register operations are
+adapted in `drivers/usb/udc_wch.c`, retaining attribution; the outdated control
+helpers, direct net_buf DMA and transfer/lifetime logic are replaced with
+4.4's `udc_setup_received`, internal staging and serialized work handling.
+The original is not claimed to be a complete/qualified driver. Vendor examples
+were consulted, not copied. See [USB scope](usb-udc.md) for references and gates.
+Endpoint DMA belongs to USBFS, not the general DMA1 controller. The downstream
+binding and test overlays are new code; no upstream SoC/core file is patched.

@@ -7,8 +7,8 @@ validation target. This is a downstream project, not an official WCH driver pack
 ## Status
 
 This revision provides Zephyr module integration, an opt-in community UART
-baseline, experimental UART DMA TX/RX and test scaffolding.
-**RX inactivity timeout and USB UDC are not implemented; no hardware is qualified.**
+baseline, experimental UART DMA TX/RX, USBFS UDC and executable test fixtures.
+**RX inactivity timeout remains unsupported; UART and USB are awaiting hardware validation.**
 
 | Component | Status |
 | --- | --- |
@@ -18,8 +18,8 @@ baseline, experimental UART DMA TX/RX and test scaffolding.
 | External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
 | UART asynchronous TX using DMA | Opt-in; TC completion, abort/deadline, native tests |
 | UART asynchronous RX using DMA | Opt-in normal-mode buffers/disable/errors; finite timeout unsupported |
-| USBFS UDC with endpoint DMA and bulk IN/OUT | Planned |
-| ztest / Twister test structure | Native state tests; build-only DMA/TX/paced RX; USB skips |
+| USBFS UDC with endpoint DMA and bulk IN/OUT | Experimental EP0 + EP1 IN/EP2 OUT; hardware gate |
+| ztest / Twister test structure | Native state tests; build-only DMA/UART/USB; targeted host USB fixture |
 | Hardware validation | Pending |
 
 Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
@@ -50,15 +50,24 @@ The [RX increment](docs/uart-rx.md) adds `CONFIG_WCH_UART_ASYNC_RX=y` for
 `SYS_FOREVER_US` reception, next-buffer handoff and stop/error events. It does
 not promise gapless reception. Development now pauses at the
 [hardware gates](docs/hardware-bringup.md) before IDLE timeout, high-rate
-optimization, FeTec integration or USB work.
+optimization or FeTec integration. At the product owner's request, USB was
+advanced independently to its own hardware gate in the next increment.
+
+The [USBFS increment](docs/usb-udc.md) adds opt-in `CONFIG_WCH_UDC=y`, a
+controller binding, internal endpoint-DMA staging, EP0 and a bulk pair.
+It includes a vendor echo firmware and an explicitly targeted PyUSB script.
+Gello USB initialization releases shared SDI pins only with an explicit opt-in;
+read the wiring/recovery instructions before flashing. No USB device has been
+enumerated or qualified yet. Board defaults remain unchanged.
 
 ## Repository layout
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
 - `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.
-- `dts/`: future bindings and SoC additions; existing UART bindings are reused.
-- `tests/`: standalone ztest applications, Twister scenarios and host-fixture
-  plans; see [test instructions](tests/README.md).
+- `drivers/usb/`: experimental USBFS UDC and CH32V203 clock/pad integration.
+- `dts/`: downstream USBFS binding; existing UART bindings are reused.
+- `tests/`: standalone ztest applications, USB firmware, Twister scenarios and
+  a host runner; see [test instructions](tests/README.md).
 - `docs/upstream.md`: pinned import provenance and local-change notes.
 - `zephyr/module.yml`: west/Zephyr module discovery.
 
@@ -127,8 +136,8 @@ Compile-only integration checks passed in the complete west workspace:
 used the C++20 settings above. This verifies module integration, not hardware.
 
 The UART import is additionally compiled in polling and interrupt variants by
-Twister, together with DMA hardware tests and the USB placeholder (build-only).
-The DMA and UART TX/RX implementations also have executable native_sim tests.
+Twister, together with DMA hardware tests and the USB echo firmware (build-only).
+The DMA, UART TX/RX and USB UDC implementations have executable native_sim tests.
 See [test instructions](tests/README.md) for commands and hardware-test gaps.
 
 ## Community work and provenance
@@ -138,7 +147,8 @@ Potential implementation references include
 [USBFS PR #94286](https://github.com/zephyrproject-rtos/zephyr/pull/94286), and
 [BOJIT's USB branch](https://github.com/BOJIT/zephyr/tree/driver/ch32_usb).
 The UART baseline was imported from the pinned BOJIT branch snapshot documented
-in [upstream provenance](docs/upstream.md). No USB source has been imported.
+in [upstream provenance](docs/upstream.md). The USB register operations are now
+adapted with retained attribution and rewritten 4.4 control/transfer handling.
 
 Before importing code, record the exact repository, commit and original paths;
 retain author/license notices and document local modifications. Keep changes

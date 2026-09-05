@@ -4,6 +4,10 @@
 software increment ends at this gate. Resume together with the board owner;
 native tests and successful linking cannot waive any gate below.
 
+This is the UART gate. USB was subsequently advanced independently at the
+product owner's request; see [USB's separate hardware gate](usb-udc.md).
+That does not qualify either peripheral or waive the UART timing checks.
+
 ## Prepare before powering the board
 
 Confirm the actual board revision, schematic and MCU marking/package. Gello's

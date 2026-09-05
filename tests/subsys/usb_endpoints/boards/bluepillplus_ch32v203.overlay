@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Release API compile fixture; actual USB routing on this board is unqualified. */
+#include "ragtime_gello.overlay"
+&zephyr_udc0 { /delete-property/ wch,disable-sdi; };

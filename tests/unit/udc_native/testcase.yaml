@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+tests:
+  wch.udc.native:
+    platform_allow: [native_sim/native/64]
+    integration_platforms: [native_sim/native/64]
+    tags: [usb, wch]
+    harness: ztest

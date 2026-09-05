@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+description: |
+  Experimental downstream CH32V203 USBFS (USBHD) controller at 0x50000000.
+  Exposes EP0 control, EP1 bulk IN and EP2 bulk OUT only. Endpoint staging
+  DMA is internal to USBFS; do not add DMA1 dmas properties.
+compatible: "wch,ch32v203-usbfs"
+include: [usb-controller.yaml]
+properties:
+  reg:
+    required: true
+  interrupts:
+    required: true
+  clocks:
+    required: true
+  maximum-speed:
+    const: "full-speed"
+  wch,pll-frequency:
+    type: int
+    required: true
+    enum: [48000000, 96000000, 144000000]
+    description: PLL frequency in Hz; the driver programs the USB 48 MHz divider.
+  wch,disable-sdi:
+    type: boolean
+    description: USB pads share SDI on this package; requires WCH_UDC_RELEASE_SDI.

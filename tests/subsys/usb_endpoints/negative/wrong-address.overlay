@@ -1,0 +1,2 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+&zephyr_udc0 { reg = <0x40005c00 0x1000>; };

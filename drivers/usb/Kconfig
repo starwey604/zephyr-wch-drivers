@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+config WCH_UDC
+	bool "Experimental CH32V203 USBFS device controller"
+	depends on DT_HAS_WCH_CH32V203_USBFS_ENABLED && UDC_DRIVER
+	depends on !UDC_ENABLE_SOF
+	select UDC_WORKQUEUE
+	help
+	  Full Speed EP0 plus EP1 IN and EP2 OUT bulk endpoints, using internal
+	  endpoint DMA staging buffers. No general DMA1 dependency. Not hardware
+	  qualified. No isochronous, remote wakeup or power management support.
+
+config WCH_UDC_RELEASE_SDI
+	bool "Allow USBFS to release shared SDI debug pins"
+	depends on WCH_UDC
+	help
+	  Explicit opt-in for packages such as Gello QFN20. Initializing USB
+	  disconnects SDI debugging. Keep NRST accessible and disconnect the
+	  probe from the USB pair before connecting a host. Reset restores SDI.

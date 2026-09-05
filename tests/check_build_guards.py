@@ -16,6 +16,7 @@ def main():
     workspace = args.workspace.resolve()
     module = Path(__file__).resolve().parent.parent
     source = module / "tests/drivers/uart_dma"
+    usb_source = module / "tests/subsys/usb_endpoints"
     cases = [
         ("duplicate-driver", ["-DCONFIG_UART_WCH_USART=y"], "Disable CONFIG_UART_WCH_USART"),
         ("duplicate-dma-driver", ["-DCONFIG_DMA_WCH=y"], "Disable CONFIG_DMA_WCH"),
@@ -29,16 +30,26 @@ def main():
         ("wrong-request", [], "Incorrect CH32V203 UART DMA request mapping"),
         ("missing-rx", [], "WCH UART DMA requires tx and rx dma-names"),
         ("disabled-dma", [], "DMA controller is disabled"),
+        ("usb-sdi-optin", ["-DCONFIG_WCH_UDC_RELEASE_SDI=n"],
+         "Shared USB/SDI pins require explicit"),
+        ("usb-wrong-clock", [f"-DEXTRA_DTC_OVERLAY_FILE={usb_source / 'negative/wrong-clock.overlay'}"],
+         "USBFS requires the AHB bit 12 clock"),
+        ("usb-wrong-address", [f"-DEXTRA_DTC_OVERLAY_FILE={usb_source / 'negative/wrong-address.overlay'}"],
+         "Use USBFS, not USBD"),
     ]
     for name, extra, diagnostic in cases:
+        usb_case = name.startswith("usb-")
+        app = usb_source if usb_case else workspace / "zephyr/samples/hello_world"
+        fragments = str(module / "tests/configs/ragtime-cpp20.conf")
+        if not usb_case:
+            fragments += f";{module / 'tests/configs/uart-dma-prepare.conf'}"
         command = [
             str(workspace / ".venv/bin/west"), "build", "-s",
-            str(workspace / "zephyr/samples/hello_world"),
+            str(app),
             "-b", "ragtime_gello", "-d", str(workspace / "build/test-wch-negative" / name),
             "--pristine", "always", "--",
             f"-DEXTRA_ZEPHYR_MODULES={module}",
-            f"-DEXTRA_CONF_FILE={module / 'tests/configs/ragtime-cpp20.conf'};"
-            f"{module / 'tests/configs/uart-dma-prepare.conf'}",
+            f"-DEXTRA_CONF_FILE={fragments}",
         ]
         if args.sdk:
             command.append(f"-DZEPHYR_SDK_INSTALL_DIR={args.sdk.resolve()}")

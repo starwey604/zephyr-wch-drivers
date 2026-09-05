@@ -2,3 +2,4 @@
 
 rsource "serial/Kconfig"
 rsource "dma/Kconfig"
+rsource "usb/Kconfig"
