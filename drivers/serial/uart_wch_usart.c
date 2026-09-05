@@ -21,13 +21,28 @@
 
 #include <hal_ch32fun.h>
 
+#include "uart_wch_contract.h"
+
+#ifdef CONFIG_WCH_UART_DMA_PREPARE
+#include "uart_wch_dma_dt.h"
+BUILD_ASSERT(CONFIG_DMA_INIT_PRIORITY < CONFIG_SERIAL_INIT_PRIORITY,
+	     "DMA must initialize before UART DMA preparation");
+#endif
+
 struct usart_wch_config {
 	USART_TypeDef *regs;
 	const struct device *clock_dev;
 	uint32_t current_speed;
 	uint8_t parity;
+	uint8_t stop_bits;
+	uint8_t data_bits;
+	bool hw_flow_control;
 	uint8_t clock_id;
 	const struct pinctrl_dev_config *pin_cfg;
+#ifdef CONFIG_WCH_UART_DMA_PREPARE
+	const struct device *dma_tx_dev;
+	const struct device *dma_rx_dev;
+#endif
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
 #endif
@@ -48,36 +63,44 @@ static int usart_wch_init(const struct device *dev)
 	uint32_t divn;
 	int err;
 
-	clock_control_on(config->clock_dev, clock_sys);
+	/* Reject unsupported framing instead of silently configuring another format. */
+	if (config->parity != UART_CFG_PARITY_NONE ||
+	    config->stop_bits != UART_CFG_STOP_BITS_1 || config->data_bits != 8 ||
+	    config->hw_flow_control) {
+		return -ENOTSUP;
+	}
+	if (!device_is_ready(config->clock_dev)) {
+		return -ENODEV;
+	}
+#ifdef CONFIG_WCH_UART_DMA_PREPARE
+	if (!device_is_ready(config->dma_tx_dev) || !device_is_ready(config->dma_rx_dev)) {
+		return -ENODEV;
+	}
+#endif
+	err = clock_control_on(config->clock_dev, clock_sys);
+	if (err != 0) {
+		return err;
+	}
 
 	err = clock_control_get_rate(config->clock_dev, clock_sys, &clock_rate);
 	if (err != 0) {
 		return err;
 	}
-	divn = (clock_rate + config->current_speed / 2) / config->current_speed;
-
-	switch (config->parity) {
-	case UART_CFG_PARITY_NONE:
-		break;
-	case UART_CFG_PARITY_ODD:
-		ctlr1 |= USART_CTLR1_PCE | USART_CTLR1_PS;
-		break;
-	case UART_CFG_PARITY_EVEN:
-		ctlr1 |= USART_CTLR1_PCE;
-		break;
-	default:
-		return -EINVAL;
+	err = wch_uart_brr(clock_rate, config->current_speed, &divn);
+	if (err != 0) {
+		return err;
 	}
-
-	regs->BRR = divn;
-	regs->CTLR1 = ctlr1;
-	regs->CTLR2 = 0;
-	regs->CTLR3 = 0;
 
 	err = pinctrl_apply_state(config->pin_cfg, PINCTRL_STATE_DEFAULT);
 	if (err != 0) {
 		return err;
 	}
+	/* Configure while disabled; enable only after clocks/pins/config are valid. */
+	regs->CTLR1 = 0;
+	regs->CTLR2 = 0;
+	regs->CTLR3 = 0;
+	regs->BRR = divn;
+	regs->CTLR1 = ctlr1;
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
@@ -323,7 +346,18 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 #define USART_WCH_IRQ_HANDLER(idx)
 #endif
 
+#ifdef CONFIG_WCH_UART_DMA_PREPARE
+#define USART_WCH_DMA_CHECK(idx) WCH_UART_DMA_DT_CHECK(idx)
+#define USART_WCH_DMA_CONFIG(idx)                                                                 \
+	.dma_tx_dev = DEVICE_DT_GET(WCH_DMA_CTLR(idx, tx)),                                        \
+	.dma_rx_dev = DEVICE_DT_GET(WCH_DMA_CTLR(idx, rx)),
+#else
+#define USART_WCH_DMA_CHECK(idx)
+#define USART_WCH_DMA_CONFIG(idx)
+#endif
+
 #define USART_WCH_INIT(idx)                                                                        \
+	USART_WCH_DMA_CHECK(idx)                                                                   \
 	PINCTRL_DT_INST_DEFINE(idx);                                                               \
 	USART_WCH_IRQ_HANDLER_DECL(idx)                                                            \
 	static struct usart_wch_data usart_wch_##idx##_data;                                       \
@@ -331,9 +365,13 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 		.regs = (USART_TypeDef *)DT_INST_REG_ADDR(idx),                                    \
 		.current_speed = DT_INST_PROP(idx, current_speed),                                 \
 		.parity = DT_INST_ENUM_IDX(idx, parity),                                           \
+		.stop_bits = DT_INST_ENUM_IDX_OR(idx, stop_bits, UART_CFG_STOP_BITS_1),            \
+		.data_bits = DT_INST_PROP_OR(idx, data_bits, 8),                                   \
+		.hw_flow_control = DT_INST_PROP(idx, hw_flow_control),                             \
 		.clock_dev = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(idx)),                              \
 		.clock_id = DT_INST_CLOCKS_CELL(idx, id),                                          \
 		.pin_cfg = PINCTRL_DT_INST_DEV_CONFIG_GET(idx),                                    \
+		USART_WCH_DMA_CONFIG(idx)                                                         \
 		USART_WCH_IRQ_HANDLER_FUNC(idx)};                                                  \
 	DEVICE_DT_INST_DEFINE(idx, &usart_wch_init, NULL, &usart_wch_##idx##_data,                 \
 			      &usart_wch_##idx##_config, PRE_KERNEL_1,                             \

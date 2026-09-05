@@ -1,8 +1,8 @@
 # Driver test bring-up
 
-These are Zephyr ztest applications and Twister build scenarios for future
-hardware qualification. **This revision verifies compilation only.** Nothing
-is flashed automatically, and no UART DMA or USB transfer has been validated.
+These are Zephyr ztest/Twister applications for future hardware qualification,
+plus executable host tests. **Host tests exercise pure helpers, not hardware.**
+Nothing is flashed automatically; no UART DMA or USB transfer is validated.
 
 ## Layout and current coverage
 
@@ -12,6 +12,8 @@ is flashed automatically, and no UART DMA or USB transfer has been validated.
 | `subsys/usb_endpoints` | EP0 and bulk cases explicitly skip; no USB stack/UDC | Enumeration, bulk IN/OUT, endpoint DMA, reset/reconnect |
 | `host` | Host-fixture requirements only | UART traffic generator and USB bulk exerciser |
 | `configs` | Optional Ragtime C++20 workspace compatibility fragment | Keep product-only dependencies out of test defaults |
+| `unit/uart_contract` | Host CTest: BRR arithmetic, DMA lengths, RX progress | Extend with state/IRQ tests as implementation arrives |
+| `check_build_guards.py` | Six negative builds requiring specific diagnostics | Extend invalid resource/configuration coverage |
 
 `tests.yaml` registers UART interrupt/polling variants and the USB placeholder.
 All are `build_only: true`; skipped cases are not successful transfer tests.
@@ -19,9 +21,10 @@ The `test-uart0`/`test-uart1` aliases come from the Gello test overlay. The UART
 driver does not consume the DMA mappings yet. A readiness check is not proof
 of correct pin routing, request-channel selection, IRQ delivery or baud rate.
 
-## Build in the CH32 workspace
+## Build in the Ragtime dev workspace
 
-Run from `~/codings/Ragtime_Firmwares-ch32` after updating the manifest pin:
+Run from `~/codings/Ragtime_Firmwares` (`dev/wirelink-p0-hardening`) after
+updating the manifest pin. The old `ch32` worktree is no longer the dev target:
 
 ```sh
 .venv/bin/west update zephyr-wch-drivers
@@ -57,6 +60,65 @@ To compile all scenarios via Twister:
   --outdir build/test-wch-twister \
   -x EXTRA_CONF_FILE=$PWD/modules/drivers/wch/tests/configs/ragtime-cpp20.conf
 ```
+
+## Executable host tests and negative builds
+
+From the Ragtime workspace (substitute `../zephyr-wch-drivers` while developing):
+
+```sh
+cmake -S modules/drivers/wch/tests/unit/uart_contract \
+  -B build/test-wch-contract -DCMAKE_BUILD_TYPE=Release
+cmake --build build/test-wch-contract
+ctest --test-dir build/test-wch-contract --output-on-failure
+.venv/bin/python modules/drivers/wch/tests/check_build_guards.py \
+  --workspace "$PWD" --sdk /home/ww/zephyr-sdk-1.0.1
+```
+
+The three host suites test the same BRR helper used in driver initialization,
+DMA length limits, and future non-cyclic RX progress arithmetic. They do not
+simulate registers, IRQ delivery, callbacks or buffer ownership. Their checks
+remain enabled with `NDEBUG`. The negative runner checks six specific errors:
+duplicate drivers, init order, channel range, wrong request, missing RX, and
+disabled DMA. An unrelated build failure is a test failure, not a pass.
+
+## Release compatibility check
+
+Use an **independent** west workspace whose manifest repository is Zephyr
+v4.4.0 (`684c9e8f...`), and its matching `hal_wch` (`dd3855ea...`). Do not
+switch the active Ragtime Zephyr checkout. Point `ZEPHYR_MODULES` at just that
+HAL and this module; no Ragtime/OnePID/C++ fragment is needed for BluePill:
+
+```sh
+/path/to/Ragtime_Firmwares/.venv/bin/west build \
+  -s /path/to/zephyr-wch-drivers/tests/drivers/uart_dma \
+  -b bluepillplus_ch32v203 -d build/test-wch-v440-irq --pristine always -- \
+  '-DZEPHYR_MODULES=/path/to/release-hal-wch;/path/to/zephyr-wch-drivers' \
+  -DZEPHYR_SDK_INSTALL_DIR=/path/to/zephyr-sdk-1.0.1
+```
+
+For the second variant add `-DCONFIG_UART_INTERRUPT_DRIVEN=n` and use a new
+build directory. Both include compile-time UART/DMA public API signature
+checks. The BluePill overlay disables USART3/console, wires USART1/2, and
+supplies the DMA1 node missing in v4.4.0. This is a compile fixture, not a
+hardware validation or an unmodified release DT configuration. Gello itself
+does not build on that release because its EXTI node is also absent.
+
+## Round-1 verification record
+
+Zephyr SDK 1.0.1; exact Zephyr/HAL pairs are in the [audit](../docs/uart-dma-design.md).
+
+| Check | Result | Evidence type |
+| --- | --- | --- |
+| Host baud/buffer/progress | 3/3 passed | Executed on host |
+| Negative build guards | 6/6 expected diagnostics | Executed compile-failure checks |
+| 4.4.99 Gello UART interrupt/polling and USB placeholder | 3/3 built | Compile only, no device run |
+| 4.4.99 BluePill UART interrupt/polling | 2/2 built | Compile fixture regression |
+| v4.4.0 BluePill + DMA1 fixture, UART interrupt/polling | 2/2 built | Compile only, not Gello |
+| 4.4.99 Gello hello_world, external UART enabled / DMA disabled | Built | Non-DMA UART regression |
+| 4.4.99 STM32 Florid LED, module disabled | Built | Compile-only regression |
+| v4.4.0 Gello, unchanged board | Fails on missing `exti` | Known board compatibility gap |
+
+UART DMA transfer and USB cases remain explicit skips. No hardware was flashed.
 
 ## Hardware procedure to complete later
 

@@ -1,0 +1,2 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+&usart1 { dmas = <&dma1 7>, <&dma1 4>; };

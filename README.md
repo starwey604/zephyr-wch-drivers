@@ -13,6 +13,7 @@ baseline and test scaffolding. **It does not implement UART DMA or USB UDC yet.*
 | --- | --- |
 | CMake / Kconfig / DTS module registration | Available |
 | External polling/interrupt UART baseline | Imported; compile-tested only |
+| UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
 | UART asynchronous TX/RX using DMA | Planned |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Planned |
 | ztest / Twister test structure | UART smoke checks and explicit DMA/USB skips |
@@ -22,6 +23,12 @@ Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
 alone adds no driver code. To use the external UART baseline, explicitly set
 `CONFIG_UART_WCH_USART=n` and `CONFIG_WCH_UART=y`. The two UART drivers must
 never own the same DT devices simultaneously. No async capability is advertised.
+
+`CONFIG_WCH_UART_DMA_PREPARE=y` additionally validates USART1/2 DMA resources
+when `CONFIG_DMA=y`; it does not enable asynchronous transfers. Current framing
+support is explicitly 8N1 without hardware flow control. See the
+[round-1 design and audit](docs/uart-dma-design.md) for ownership, locking,
+version compatibility and known upstream DMA limitations.
 
 ## Repository layout
 

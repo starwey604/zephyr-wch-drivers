@@ -1,0 +1,80 @@
+/*
+ * DMA1 node adapted from Zephyr ch32v20x_30x_common.dtsi:
+ * Copyright (c) 2025 James Bennion-Pedley
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* Compile fixture for stock Zephyr v4.4.0, not a substitute Gello board. */
+#include <zephyr/dt-bindings/pinctrl/ch32v20x_30x-pinctrl.h>
+#include <zephyr/dt-bindings/clock/ch32v20x_30x-clocks.h>
+
+/ {
+	/* v4.4.0 has the driver but lacks the CH32V203 DMA1 SoC node. */
+	soc {
+		test_dma1: dma@40020000 {
+			compatible = "wch,wch-dma";
+			reg = <0x40020000 0xa8>;
+			clocks = <&rcc CH32V20X_V30X_CLOCK_DMA1>;
+			#dma-cells = <1>;
+			interrupt-parent = <&pfic>;
+			interrupts = <27>, <28>, <29>, <30>, <31>, <32>, <33>;
+			dma-channels = <7>;
+			status = "okay";
+		};
+	};
+	chosen {
+		/delete-property/ zephyr,console;
+		/delete-property/ zephyr,shell-uart;
+	};
+	aliases {
+		test-uart0 = &usart1;
+		test-uart1 = &usart2;
+	};
+};
+
+&pinctrl {
+	test_usart1: test-usart1 {
+		tx {
+			pinmux = <USART1_TX_PA9_0>;
+			output-high;
+			drive-push-pull;
+			slew-rate = "max-speed-50mhz";
+		};
+		rx {
+			pinmux = <USART1_RX_PA10_0>;
+			bias-pull-up;
+		};
+	};
+	test_usart2: test-usart2 {
+		tx {
+			pinmux = <USART2_TX_PA2_0>;
+			output-high;
+			drive-push-pull;
+			slew-rate = "max-speed-50mhz";
+		};
+		rx {
+			pinmux = <USART2_RX_PA3_0>;
+			bias-pull-up;
+		};
+	};
+};
+
+&usart3 { status = "disabled"; };
+
+&usart1 {
+	status = "okay";
+	current-speed = <3000000>;
+	pinctrl-0 = <&test_usart1>;
+	pinctrl-names = "default";
+	dmas = <&test_dma1 3>, <&test_dma1 4>;
+	dma-names = "tx", "rx";
+};
+
+&usart2 {
+	status = "okay";
+	current-speed = <3000000>;
+	pinctrl-0 = <&test_usart2>;
+	pinctrl-names = "default";
+	dmas = <&test_dma1 6>, <&test_dma1 5>;
+	dma-names = "tx", "rx";
+};

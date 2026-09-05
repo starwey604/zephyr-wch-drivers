@@ -13,3 +13,11 @@ config WCH_UART
 	  drivers owning the same devicetree nodes. Polling and interrupt
 	  APIs are present; asynchronous UART/DMA is NOT implemented yet.
 	  This driver has only been compile-tested, not hardware-validated.
+
+config WCH_UART_DMA_PREPARE
+	bool "Validate CH32V203 USART1/2 DMA resources (no transfers yet)"
+	depends on WCH_UART && DMA
+	help
+	  Check tx/rx devicetree mappings and DMA controller readiness before
+	  UART initialization. This does not reserve/start DMA channels or
+	  select SERIAL_SUPPORT_ASYNC. It prepares the next development stage.

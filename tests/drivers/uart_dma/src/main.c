@@ -12,6 +12,7 @@
 #define DMA_CHANNEL(node, dir) DT_DMAS_CELL_BY_NAME(node, dir, channel)
 
 BUILD_ASSERT(IS_ENABLED(CONFIG_WCH_UART), "This test must exercise the external UART driver");
+BUILD_ASSERT(IS_ENABLED(CONFIG_WCH_UART_DMA_PREPARE), "DMA preparation must be tested");
 BUILD_ASSERT(!IS_ENABLED(CONFIG_UART_WCH_USART), "Disable the upstream UART driver");
 BUILD_ASSERT(DT_NODE_HAS_STATUS(UART0_NODE, okay), "test-uart0 must be enabled");
 BUILD_ASSERT(DT_NODE_HAS_STATUS(UART1_NODE, okay), "test-uart1 must be enabled");
