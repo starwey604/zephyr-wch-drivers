@@ -1,15 +1,16 @@
 # Driver test bring-up
 
-These are Zephyr ztest/Twister applications for future hardware qualification,
-plus executable host tests. **Host tests exercise helpers or modeled registers,
-not hardware.**
-Nothing is flashed automatically; no UART DMA or USB transfer is validated.
+These are Zephyr/Twister applications, host unit checks and targeted hardware
+runners. **Host unit checks exercise helpers or modeled registers, not hardware.**
+Selected UART IRQ/polling hardware runs are documented below. Nothing is flashed
+automatically; no UART DMA or USB transfer is validated.
 
 ## Layout and current coverage
 
 | Directory | Current behavior | Next hardware checks |
 | --- | --- | --- |
 | `drivers/uart_polling` | UART1/CH340 heartbeat and paced ASCII echo, first hardware run passed | Baud measurement, USART2; see dated hardware report |
+| `drivers/uart_direction` | Bounded IRQ RX/TX, batch/duplex and immediate echo at 921600 | Capture USB return stalls; not high-rate qualification |
 | `drivers/uart_dma` | Readiness/ownership, optional TX and paced local RX loopback | Capture dual-UART bytes/baud, tail/abort, RX timing |
 | `subsys/usb_endpoints` | Real vendor EP0/bulk echo firmware; build-only | Enumeration, DMA bytes/timing, reset/reconnect |
 | `host` | Targeted PyUSB runner + 4 executable host-script tests | Execute USB checks on the DUT; UART host generator pending |
@@ -42,6 +43,11 @@ The [35-trial follow-up](../docs/hardware-20260910-921600.md), using
 must not be treated as 921600 qualification.
 Optional `--trace-address` on that runner decodes the diagnostic driver's
 RAM records after traffic; see [IRQ tracing](../docs/uart-irq-trace.md).
+The [direction-isolation campaign](../docs/hardware-20260910-uart-direction.md)
+then recovered missing 64-byte USART2 echoes by sending one extra byte. Use
+[`drivers/uart_direction`](drivers/uart_direction/README.md) and
+`host/uart_direction.py` to distinguish incomplete delivery from byte corruption.
+Earlier failures are retained; not all loss cases are explained.
 
 For first-power testing with an onboard CH340, see
 [`drivers/uart_polling`](drivers/uart_polling/README.md) and the

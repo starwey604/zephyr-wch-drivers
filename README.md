@@ -71,6 +71,9 @@ The [35-trial follow-up](docs/hardware-20260910-921600.md) also found occasional
 USART1 loss; neither 921600 link is qualified despite earlier individual passes.
 Opt-in [IRQ RAM diagnostics](docs/uart-irq-trace.md) now retain error sites and
 sampled callback timing without printing on either tested UART.
+The [direction-isolation follow-up](docs/hardware-20260910-uart-direction.md)
+finds recoverable 64-byte USART2 echo stalls; 70 direction/batch/duplex checks
+passed, but earlier loss/overrun issues and high-rate qualification remain open.
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
 - `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.

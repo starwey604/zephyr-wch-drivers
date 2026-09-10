@@ -17,6 +17,10 @@ intentionally reviewed as test evidence.
 
 ## Remaining fixtures
 
+- `uart_direction.py` performs bounded IRQ direction/echo HIL with post-traffic
+  RAM capture and optional stalled-return probes; see
+  [its fixture](../drivers/uart_direction/README.md). It resets the target, but
+  does not flash or restore firmware. Failed probes remain failed trials.
 - `uart_polling.py` now verifies the first-power UART1/CH340 firmware with
   50 ms inter-byte pacing; see [its fixture](../drivers/uart_polling/README.md).
   It uses pyserial and never flashes or resets a device.

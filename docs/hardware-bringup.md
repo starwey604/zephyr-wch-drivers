@@ -8,6 +8,9 @@ dual-port checks at 115200 and USART1 at 921600. USART2 burst echo loses return
 bytes at 921600; high-rate diagnosis and dual 3 Mbaud remain blocked.
 The [repeated 921600 campaign](hardware-20260910-921600.md) also found
 USART1 loss and two short USART2 RX counts; neither high-rate link is qualified.
+The [direction-isolation follow-up](hardware-20260910-uart-direction.md)
+recovers a specific 64-byte USART2 deficit with an extra byte, narrowing that
+subset to delayed delivery. Other losses and instrumented ORE remain open.
 Continue together with the board owner; native tests and
 successful linking cannot waive any gate below.
 
