@@ -11,6 +11,8 @@ USART1 loss and two short USART2 RX counts; neither high-rate link is qualified.
 The [direction-isolation follow-up](hardware-20260910-uart-direction.md)
 recovers a specific 64-byte USART2 deficit with an extra byte, narrowing that
 subset to delayed delivery. Other losses and instrumented ORE remain open.
+The [usbmon capture](hardware-20260910-usbmon.md) locates the 64-byte subset
+in cancelled host USB requests; no production UART fix follows from that alone.
 Continue together with the board owner; native tests and
 successful linking cannot waive any gate below.
 

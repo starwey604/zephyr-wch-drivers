@@ -1,5 +1,9 @@
 # 2026-09-10: direction isolation and recoverable 64-byte echo stalls
 
+Later [usbmon capture](hardware-20260910-usbmon.md) confirms 128-byte host IN
+requests and recovers missing 64 bytes from cancelled requests. The capture
+permission limitation below describes this earlier session, not current access.
+
 **Some apparent USART2 return loss is delayed delivery, not destroyed bytes.**
 After a one-second echo timeout, sending one further byte recovered all missing
 64 bytes plus that byte, in order, in 12/12 reproduced failures. This does not

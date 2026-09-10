@@ -32,3 +32,40 @@ intentionally reviewed as test evidence.
 
 The paced UART1 checks have run on one board; USB hardware tests have not.
 Fake-API tests do not qualify transfers.
+
+## Targeted WCH-Link USB monitor
+
+`usbmon_uart.py` is a read-only, 1..60-second x86-64 Linux binary usbmon
+capture. It validates the explicit bus/address as `1a86:8010`, then retains
+only CDC bulk endpoints `0x03`/`0x83`. No other device traffic, control traffic
+or debug endpoints are written. The bus monitor itself sees the whole bus;
+keep camera/Bluetooth or other private traffic idle where possible. Local
+JSON includes opaque kernel URB identifiers: do not publish it unreviewed.
+
+After the owner loads `usbmon` and grants read access to `/dev/usbmon<N>`, run
+from Ragtime in one terminal (substitute the currently verified bus/address):
+
+```sh
+.venv/bin/python ../zephyr-wch-drivers/tests/host/usbmon_uart.py \
+  --bus 3 --address <WCH-Link-address> --seconds 30 > build/wch-usbmon.jsonl
+```
+
+Wait for `usbmon ready`, then in another terminal run the
+[direction runner](../drivers/uart_direction/README.md), `--case echo2`,
+`--echo-chunk 64`, `--trials 5`, optionally `--probe-after-failure`.
+Without the probe, the existing runner closes the serial port after timeout;
+capture preserves cancelled URBs' status, actual length and bytes. Closing is
+not a recovery/pass, and the capture script itself never opens/closes a serial
+port. Use `--gap-ms 2` for the pacing control. Allow capture to finish normally
+and require zero dropped/queued events before interpreting absence of events.
+JSON `truncated` flags caller-buffer truncation; a missing data payload is not
+evidence of a zero-length USB transfer. The script never flashes, rebinds kernel
+drivers, changes USB configuration, or alters monitor permissions.
+
+Read [the captured hardware evidence](../../docs/hardware-20260910-usbmon.md)
+before attributing a stall to UART hardware. usbmon reports URB-level events,
+not individual USB packets or UART waveforms. Decoder software checks:
+
+```sh
+python -m unittest discover -s tests/host -p test_usbmon_uart.py
+```

@@ -74,6 +74,8 @@ sampled callback timing without printing on either tested UART.
 The [direction-isolation follow-up](docs/hardware-20260910-uart-direction.md)
 finds recoverable 64-byte USART2 echo stalls; 70 direction/batch/duplex checks
 passed, but earlier loss/overrun issues and high-rate qualification remain open.
+Subsequent [usbmon capture](docs/hardware-20260910-usbmon.md) finds those 64
+bytes in cancelled host USB requests, narrowing the CDC completion problem.
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
 - `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.
