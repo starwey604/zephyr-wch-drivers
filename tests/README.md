@@ -37,6 +37,9 @@ For binary interrupt TX/RX on both USARTs, use the separate
 `host/uart_irq.py` runner. Bounded dual-port IRQ echo passed at 115200 after
 correcting J1 TX/RX wiring. USART1 passed at 921600, but USART2 burst return
 bytes were lost; high-rate diagnosis and dual 3-Mbaud-capable bridges remain pending.
+The [35-trial follow-up](../docs/hardware-20260910-921600.md), using
+`host/uart_irq_repeat.py`, also found USART1 loss. Earlier individual passes
+must not be treated as 921600 qualification.
 
 For first-power testing with an onboard CH340, see
 [`drivers/uart_polling`](drivers/uart_polling/README.md) and the

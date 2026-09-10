@@ -5,6 +5,10 @@ driver. DMA/USB remain disabled and **unqualified**. After correcting USART2
 TX/RX wiring, dual-port IRQ echo passed at 115200. USART2 burst echo at 921600
 lost return bytes; that rate and dual 3 Mbaud remain unqualified.
 
+The later [35-trial 921600 campaign](hardware-20260910-921600.md) also found
+occasional USART1 loss and two short MCU RX counts. Read that report before
+attributing the issue solely to USART2 or the bridge's return path.
+
 ## Setup and provenance
 
 - Same CH32V203F8U QFN20 board and startup-clock fix as the

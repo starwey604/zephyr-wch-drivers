@@ -13,7 +13,7 @@ baseline, experimental UART DMA TX/RX, USBFS UDC and executable test fixtures.
 | Component | Status |
 | --- | --- |
 | CMake / Kconfig / DTS module registration | Available |
-| External polling/interrupt UART baseline | Dual IRQ echo passed at 115200; UART1 at 921600; USART2 921600 burst loss under diagnosis |
+| External polling/interrupt UART baseline | Dual IRQ echo passed at 115200; repeated 921600 tests lose bytes on both links |
 | UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
 | External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
 | UART asynchronous TX using DMA | Opt-in; TC completion, abort/deadline, native tests |
@@ -67,6 +67,8 @@ It includes the Gello startup-clock fix needed after debugger reset, a small
 polling fixture and paced CH340 host checks. It does not qualify DMA or USB.
 The [IRQ follow-up](docs/hardware-20260910-irq.md) records dual binary echo at
 115200, corrected J1 wiring, USART2 burst loss at 921600, and the 3-Mbaud gate.
+The [35-trial follow-up](docs/hardware-20260910-921600.md) also found occasional
+USART1 loss; neither 921600 link is qualified despite earlier individual passes.
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
 - `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.
