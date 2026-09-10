@@ -3,7 +3,8 @@
 These are Zephyr/Twister applications, host unit checks and targeted hardware
 runners. **Host unit checks exercise helpers or modeled registers, not hardware.**
 Selected UART IRQ/polling hardware runs are documented below. Nothing is flashed
-automatically; no UART DMA or USB transfer is validated.
+automatically. Bounded UART DMA results are in the
+[hardware report](../docs/hardware-20260910-dma.md); native USBFS is untested.
 
 ## Layout and current coverage
 
@@ -12,6 +13,7 @@ automatically; no UART DMA or USB transfer is validated.
 | `drivers/uart_polling` | UART1/CH340 heartbeat and paced ASCII echo, first hardware run passed | Baud measurement, USART2; see dated hardware report |
 | `drivers/uart_direction` | Bounded IRQ RX/TX, batch/duplex and immediate echo at 921600 | Capture USB return stalls; not high-rate qualification |
 | `drivers/uart_dma` | Readiness/ownership, optional TX and paced local RX loopback | Capture dual-UART bytes/baud, tail/abort, RX timing |
+| `drivers/uart_rx_host` | Dual host-fed DMA full/partial/paced-handoff RX passed at 115200/921600 | Continuous handoff, error/arrival timing and stress |
 | `subsys/usb_endpoints` | Real vendor EP0/bulk echo firmware; build-only | Enumeration, DMA bytes/timing, reset/reconnect |
 | `host` | Targeted PyUSB runner + 4 executable host-script tests | Execute USB checks on the DUT; UART host generator pending |
 | `configs` | Optional Ragtime C++20 workspace compatibility fragment | Keep product-only dependencies out of test defaults |
@@ -19,7 +21,7 @@ automatically; no UART DMA or USB transfer is validated.
 | `unit/dma_native` | Production DMA driver + real Zephyr API, fake registers; 12 executed tests | Real PFIC/bus timing, request gating |
 | `unit/udc_native` | Production UDC/common API, fake MMIO; 18 executed tests | Real USB SIE/DMA/clock/pad behavior |
 | `unit/uart_tx_native` | Shared production UART fixture; TX-only 20, RX-enabled 35 tests | Actual DMA requests, wire timing and stress |
-| `drivers/dma` | Bounded 8/16/32-bit memory-copy test, currently compile-only | Run on DMA1 with debugger result capture |
+| `drivers/dma` | Bounded 8/16/32-bit memory copy passed on DMA1 CH1 | Additional channels, cyclic/error/suspend hardware coverage |
 | `check_build_guards.py` | Twelve negative builds requiring specific diagnostics | UART/DMA config plus USB SDI/clock/address guards |
 
 `tests.yaml` registers UART interrupt/polling/TX/RX variants and USB bulk firmware.

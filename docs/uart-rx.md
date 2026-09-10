@@ -3,6 +3,9 @@
 Experimental CH32V203 USART1/2 byte-wide, normal-mode DMA reception. This is
 new downstream code, not a community async-driver import. No Zephyr/HAL files
 are patched. **Hardware qualification is pending; stop here before product use.**
+Bounded host-fed full/partial/paced-handoff checks have since passed on both
+UARTs at 115200/921600; see [the report](hardware-20260910-dma.md). Continuous
+handoff, IDLE/finite timeout and error timing remain outside that evidence.
 
 ## Configuration and deliberately limited scope
 

@@ -3,7 +3,10 @@
 **Status: first board available; gate 1 partially executed.** The
 [2026-09-10 report](hardware-20260910.md) records successful flashing, a board
 startup-clock fix and paced UART1/CH340 echo. DMA/USB and the remaining gates
-are not qualified. The [IRQ follow-up](hardware-20260910-irq.md) adds bounded
+are not fully qualified. The [first DMA campaign](hardware-20260910-dma.md)
+now passes memory copy and bounded dual UART DMA TX/RX at 115200/921600,
+without waiving timing, error/abort or continuous-load checks below.
+The [IRQ follow-up](hardware-20260910-irq.md) adds bounded
 dual-port checks at 115200 and USART1 at 921600. USART2 burst echo loses return
 bytes at 921600; high-rate diagnosis and dual 3 Mbaud remain blocked.
 The [repeated 921600 campaign](hardware-20260910-921600.md) also found

@@ -1,8 +1,9 @@
 # UART DMA TX increment
 
 This document describes the TX-only configuration. The subsequent opt-in
-[RX increment](uart-rx.md) now adds limited RX; finite RX timeout and all
-hardware qualification remain pending. The historical next-step notes below
+[RX increment](uart-rx.md) now adds limited RX; finite RX timeout and full
+hardware qualification remain pending. The [first DMA hardware report](hardware-20260910-dma.md)
+records bounded dual TX/RX passes. The historical next-step notes below
 refer to the TX milestone, not the current overall module status.
 
 Experimental CH32V203 USART1/2 async **TX only**, using Zephyr's public UART

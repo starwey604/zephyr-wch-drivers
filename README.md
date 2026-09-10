@@ -8,19 +8,20 @@ validation target. This is a downstream project, not an official WCH driver pack
 
 This revision provides Zephyr module integration, an opt-in community UART
 baseline, experimental UART DMA TX/RX, USBFS UDC and executable test fixtures.
-**RX inactivity timeout remains unsupported; UART and USB are awaiting hardware validation.**
+**RX inactivity timeout remains unsupported. Bounded UART DMA hardware checks
+have passed; full UART qualification and USB hardware validation remain pending.**
 
 | Component | Status |
 | --- | --- |
 | CMake / Kconfig / DTS module registration | Available |
 | External polling/interrupt UART baseline | Dual IRQ echo passed at 115200; repeated 921600 tests lose bytes on both links |
 | UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
-| External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
-| UART asynchronous TX using DMA | Opt-in; TC completion, abort/deadline, native tests |
-| UART asynchronous RX using DMA | Opt-in normal-mode buffers/disable/errors; finite timeout unsupported |
+| External general DMA driver | Native tests; real 8/16/32-bit memory-copy subset passed |
+| UART asynchronous TX using DMA | Dual 1/128-byte TX + TC callback subset passed at 115200/921600; abort/deadline pending on hardware |
+| UART asynchronous RX using DMA | Dual host-fed full/partial/paced-handoff subset passed at 115200/921600; finite timeout unsupported |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Experimental EP0 + EP1 IN/EP2 OUT; hardware gate |
 | ztest / Twister test structure | Native state tests; build-only DMA/UART/USB; targeted host USB fixture |
-| Hardware validation | First-power/flash/UART1 polling + dual IRQ 115200 subset passed; high-rate/DMA/USB pending |
+| Hardware validation | Polling/IRQ and bounded DMA subsets passed; sustained high-rate/USB qualification pending |
 
 Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
 alone adds no driver code. To use the external UART baseline, explicitly set
@@ -76,6 +77,9 @@ finds recoverable 64-byte USART2 echo stalls; 70 direction/batch/duplex checks
 passed, but earlier loss/overrun issues and high-rate qualification remain open.
 Subsequent [usbmon capture](docs/hardware-20260910-usbmon.md) finds those 64
 bytes in cancelled host USB requests, narrowing the CDC completion problem.
+The [first DMA hardware campaign](docs/hardware-20260910-dma.md) verifies
+memory copy and bounded dual UART DMA TX/RX; it does not qualify continuous
+handoff, active abort/deadline behavior, 3 Mbaud or native USBFS.
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
 - `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.

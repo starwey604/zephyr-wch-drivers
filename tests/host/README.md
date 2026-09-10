@@ -17,6 +17,14 @@ intentionally reviewed as test evidence.
 
 ## Remaining fixtures
 
+- `uart_dma_tx.py` captures both UARTs from the TX-only `drivers/uart_dma`
+  fixture: 1 + 128 expected bytes per port and matching `wch_tx_hil_diag`
+  (64 bytes). Use `--uart1`, `--uart2`, `--baud 115200|921600`, `--trials`,
+  `--diag-address` and `--wlink`; no host payload is sent. The runner resets
+  before trials and after the final post-traffic RAM capture, never flashes.
+- `uart_dma_rx.py` feeds both DMA receivers independently of payload echo;
+  see [the host-fed RX fixture](../drivers/uart_rx_host/README.md). Both DMA
+  runners require the explicitly flashed matching firmware and stable wiring.
 - `uart_direction.py` performs bounded IRQ direction/echo HIL with post-traffic
   RAM capture and optional stalled-return probes; see
   [its fixture](../drivers/uart_direction/README.md). It resets the target, but

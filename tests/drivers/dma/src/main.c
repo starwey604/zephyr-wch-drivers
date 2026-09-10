@@ -12,12 +12,19 @@ static uint32_t destination[64];
 static int completion_status;
 K_SEM_DEFINE(completed, 0, 1);
 
+/* Post-run SDI snapshot; no console or debugger traffic during DMA. */
+volatile struct {
+	uint32_t magic, stage, widths_passed, callbacks;
+	int32_t channel, result, callback_status, stop_result;
+} wch_dma_hil_diag;
+
 static void on_complete(const struct device *dev, void *user, uint32_t channel, int status)
 {
 	ARG_UNUSED(dev);
 	ARG_UNUSED(user);
 	ARG_UNUSED(channel);
 	completion_status = status;
+	wch_dma_hil_diag.callbacks++;
 	k_sem_give(&completed);
 }
 
@@ -25,9 +32,12 @@ ZTEST(wch_dma_hardware, test_memory_copy)
 {
 	uint32_t requested = 0; /* DMA1 CH1: independent of the four USART requests. */
 
+	wch_dma_hil_diag.magic = 0x57444d41;
+	wch_dma_hil_diag.stage = 1;
 	zassert_true(device_is_ready(controller));
 	int channel = dma_request_channel(controller, &requested);
 
+	wch_dma_hil_diag.channel = channel;
 	zassert_equal(channel, requested);
 	for (uint32_t width = 1; width <= 4; width *= 2) {
 		for (size_t i = 0; i < ARRAY_SIZE(source); i++) {
@@ -62,6 +72,9 @@ ZTEST(wch_dma_hardware, test_memory_copy)
 		/* Always quiesce before asserting, including a missing IRQ/timeout. */
 		int stop_ret = dma_stop(controller, channel);
 
+		wch_dma_hil_diag.result = ret;
+		wch_dma_hil_diag.callback_status = completion_status;
+		wch_dma_hil_diag.stop_result = stop_ret;
 		if (ret != 0 || completion_status != DMA_STATUS_COMPLETE || stop_ret != 0) {
 			dma_release_channel(controller, channel);
 			zassert_unreachable("DMA width %u: ret=%d callback=%d stop=%d", width, ret,
@@ -75,8 +88,10 @@ ZTEST(wch_dma_hardware, test_memory_copy)
 			dma_release_channel(controller, channel);
 			zassert_unreachable("DMA width %u: status/progress/data mismatch", width);
 		}
+		wch_dma_hil_diag.widths_passed++;
 	}
 	dma_release_channel(controller, channel);
+	wch_dma_hil_diag.stage = 2;
 }
 
 ZTEST_SUITE(wch_dma_hardware, NULL, NULL, NULL, NULL, NULL);
