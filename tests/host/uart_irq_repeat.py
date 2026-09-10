@@ -13,6 +13,7 @@ import threading
 import time
 
 import serial
+from uart_irq_trace import decode as decode_trace, layout as trace_layout
 
 
 def read_exact(port, count, seconds=1):
@@ -67,8 +68,18 @@ def snapshot(args):
     if words[0] != 0x57434849 or words[1] != 2:
         raise RuntimeError("wrong fixture/diagnostic address or stage")
     keys = ("callbacks", "rx", "tx", "errors", "overflow", "failed")
-    return {"cfgr0": hex(words[2]), "brr": list(words[3:5]),
-            "ports": [dict(zip(keys, words[5 + i * 6:11 + i * 6])) for i in range(2)]}
+    result = {"cfgr0": hex(words[2]), "brr": list(words[3:5]),
+              "ports": [dict(zip(keys, words[5 + i * 6:11 + i * 6])) for i in range(2)]}
+    if args.trace_address is not None:
+        with tempfile.TemporaryDirectory(prefix="wch-irq-trace-") as directory:
+            path = Path(directory) / "trace.bin"
+            wlink(args, "dump", hex(args.trace_address), "32", "--out", str(path))
+            size = trace_layout(path.read_bytes())["size"]
+            if args.trace_address + size > 0x20005000:
+                raise ValueError("trace exceeds SRAM")
+            wlink(args, "dump", hex(args.trace_address), str(size), "--out", str(path))
+            result["trace"] = decode_trace(path.read_bytes())
+    return result
 
 
 def run_trial(args, trial):
@@ -117,6 +128,14 @@ def run_trial(args, trial):
         if not result["device_counts_match"] or any(diag[k] for k in
                                                      ("errors", "overflow", "failed")):
             record["result"] = "FAIL"
+        if "trace" in record["diag"]:
+            regs = {1: 0x40013800, 2: 0x40004400}[result["uart"]]
+            trace = next(p for p in record["diag"]["trace"]["ports"] if p["regs"] == regs)
+            result["trace_error_observed"] = bool(trace["api_error_or"] or trace["fifo_error_or"])
+            result["trace_counts_match"] = (trace["rx_bytes"] == diag["rx"] and
+                                             trace["tx_bytes"] == diag["tx"])
+            if result["trace_error_observed"] or not result["trace_counts_match"]:
+                record["result"] = "FAIL"
     return record
 
 
@@ -131,11 +150,16 @@ def main():
     parser.add_argument("--reset-tool", required=True)
     parser.add_argument("--diag-address", type=lambda x: int(x, 0), required=True,
                         help="wch_irq_diag address from the matching ELF; SRAM only")
+    parser.add_argument("--trace-address", type=lambda x: int(x, 0),
+                        help="Optional wch_uart_irq_trace address from matching instrumented ELF")
     args = parser.parse_args()
     if not 1 <= args.trials <= 20 or not 1 <= args.blocks <= 2048:
         parser.error("trials 1..20 and blocks 1..2048 required")
     if not 0x20000000 <= args.diag_address <= 0x20005000 - 68 or args.diag_address % 4:
         parser.error("diagnostic must be aligned within CH32V203F8U SRAM")
+    if args.trace_address is not None and (not 0x20000000 <= args.trace_address <= 0x20005000 - 32
+                                          or args.trace_address % 4):
+        parser.error("trace must be aligned within CH32V203F8U SRAM")
     selected = [1, 2] if args.mode == "dual" else [int(args.mode)]
     if any(not getattr(args, f"uart{i}") for i in selected):
         parser.error("provide explicit device paths for selected ports")

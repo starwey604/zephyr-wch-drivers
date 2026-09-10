@@ -23,6 +23,13 @@
 
 #include "uart_wch_contract.h"
 
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+#include "uart_wch_irq_trace.h"
+#define USART_WCH_TRACE_CONFIG(idx) .trace = &wch_uart_irq_trace.ports[idx],
+#else
+#define USART_WCH_TRACE_CONFIG(idx)
+#endif
+
 #ifdef CONFIG_WCH_UART_ASYNC_TX
 #include <zephyr/drivers/dma.h>
 #include "uart_wch_tx_state.h"
@@ -39,6 +46,9 @@ BUILD_ASSERT(CONFIG_DMA_INIT_PRIORITY < CONFIG_SERIAL_INIT_PRIORITY,
 
 struct usart_wch_config {
 	USART_TypeDef *regs;
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+	volatile struct wch_irq_port_trace *trace;
+#endif
 	const struct device *clock_dev;
 	uint32_t current_speed;
 	uint8_t parity;
@@ -133,6 +143,12 @@ static int usart_wch_init(const struct device *dev)
 	regs->BRR = divn;
 	regs->CTLR1 = ctlr1;
 
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+	config->trace->regs = (uint32_t)(uintptr_t)regs;
+	config->trace->baud = config->current_speed;
+	config->trace->char_ticks = (CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC / config->current_speed) * 10U;
+#endif
+
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_WCH_UART_ASYNC_TX)
 	config->irq_config_func(dev);
 #endif
@@ -188,6 +204,10 @@ static int usart_wch_err_check(const struct device *dev)
 	const struct usart_wch_config *config = dev->config;
 	USART_TypeDef *regs = config->regs;
 	uint32_t statr = regs->STATR;
+
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+	wch_trace_status(config->trace, statr, 3);
+#endif
 	enum uart_rx_stop_reason errors = 0;
 
 	if ((statr & USART_STATR_PE) != 0) {
@@ -215,9 +235,18 @@ static void usart_wch_isr(const struct device *dev)
 {
 	struct usart_wch_data *data = dev->data;
 
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+	const struct usart_wch_config *config = dev->config;
+
+	wch_trace_enter(config->trace);
+#endif
+
 	if (data->cb) {
 		data->cb(dev, data->user_data);
 	}
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+	wch_trace_exit(config->trace);
+#endif
 }
 
 static int usart_wch_fifo_fill(const struct device *dev, const uint8_t *tx_data, int len)
@@ -230,6 +259,9 @@ static int usart_wch_fifo_fill(const struct device *dev, const uint8_t *tx_data,
 	}
 
 	regs->DATAR = tx_data[0];
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+	config->trace->tx_bytes++;
+#endif
 	return 1;
 }
 
@@ -238,11 +270,36 @@ static int usart_wch_fifo_read(const struct device *dev, uint8_t *rx_data, const
 	const struct usart_wch_config *config = dev->config;
 	USART_TypeDef *regs = config->regs;
 
-	if (!size || !(regs->STATR & USART_STATR_RXNE)) {
+	if (!size) {
+		return 0;
+	}
+	uint32_t status = regs->STATR;
+
+	if (!(status & USART_STATR_RXNE)) {
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+		wch_trace_status(config->trace, status, 4);
+#endif
 		return 0;
 	}
 
 	rx_data[0] = regs->DATAR;
+#ifdef CONFIG_WCH_UART_IRQ_TRACE
+	/* Log only AFTER DATAR; retain the status that preceded the existing read. */
+	volatile struct wch_irq_port_trace *t = config->trace;
+
+	t->rx_bytes++;
+	if (t->entry_tick != UINT32_MAX) {
+		uint32_t service = wch_trace_delta(wch_trace_tick(), t->entry_tick);
+
+		if (service > t->max_rx_service_ticks) {
+			t->max_rx_service_ticks = service;
+		}
+		if (service >= t->char_ticks) {
+			t->rx_service_over_char++;
+		}
+	}
+	wch_trace_status(t, status, 4);
+#endif
 	return 1;
 }
 
@@ -434,6 +491,7 @@ static DEVICE_API(uart, usart_wch_driver_api) = {
 	static struct usart_wch_data usart_wch_##idx##_data;                                       \
 	static const struct usart_wch_config usart_wch_##idx##_config = {                          \
 		.regs = (USART_TypeDef *)DT_INST_REG_ADDR(idx),                                    \
+		USART_WCH_TRACE_CONFIG(idx)                                                       \
 		.current_speed = DT_INST_PROP(idx, current_speed),                                 \
 		.parity = DT_INST_ENUM_IDX(idx, parity),                                           \
 		.stop_bits = DT_INST_ENUM_IDX_OR(idx, stop_bits, UART_CFG_STOP_BITS_1),            \

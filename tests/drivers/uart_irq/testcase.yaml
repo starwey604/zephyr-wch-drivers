@@ -4,3 +4,9 @@ tests:
     tags: [uart, wch]
     platform_allow: [ragtime_gello/ch32v203]
     build_only: true
+  wch.uart_irq.trace:
+    tags: [uart, wch]
+    platform_allow: [ragtime_gello/ch32v203]
+    build_only: true
+    extra_configs:
+      - CONFIG_WCH_UART_IRQ_TRACE=y

@@ -57,3 +57,7 @@ Debugger attachment can perturb clocks; reset before any subsequent wire test.
 
 Twister remains `build_only: true`. See the
 [hardware results and remaining blockers](../../../docs/hardware-20260910-irq.md).
+
+For opt-in error snapshots and sampled callback timing, add `trace.conf` and
+follow the [RAM flight recorder guide](../../../docs/uart-irq-trace.md).
+Capture after traffic; tracing changes timing and is not qualification.

@@ -11,6 +11,10 @@ USART1 loss and two short USART2 RX counts; neither high-rate link is qualified.
 Continue together with the board owner; native tests and
 successful linking cannot waive any gate below.
 
+Per the board owner's updated workflow, leave the latest explicitly flashed
+test image installed after a session; do not automatically restore 115200 or
+another previous image. Record the final image and baud in the handoff.
+
 This is the UART gate. USB was subsequently advanced independently at the
 product owner's request; see [USB's separate hardware gate](usb-udc.md).
 That does not qualify either peripheral or waive the UART timing checks.

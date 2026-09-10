@@ -14,7 +14,36 @@ config WCH_UART
 	  drivers owning the same devicetree nodes. Polling and interrupt
 	  APIs are present; experimental async TX is a separate opt-in option.
 	  UART1 paced polling has been tested on one CH32V203F8U board.
-	  Interrupt and asynchronous modes still require hardware validation.
+	  Bounded dual IRQ echo passed at 115200; 921600 is not qualified.
+	  Asynchronous modes still require hardware validation.
+
+config WCH_UART_IRQ_TRACE
+	bool "CH32V203 UART IRQ RAM flight recorder (diagnostic only)"
+	depends on WCH_UART && UART_INTERRUPT_DRIVEN && !UART_ASYNC_API
+	depends on SOC_CH32V203 && CH32V00X_SYSTICK && !SMP
+	help
+	  Record IRQ timing, existing status reads, and byte counts in RAM.
+	  No printk, UART output, allocation or additional STATR/DATAR reads.
+	  Timing is perturbed by instrumentation. Decode only after traffic;
+	  the first observed hardware error freezes the event ring, not counters.
+
+config WCH_UART_IRQ_TRACE_SLOW_US
+	int "IRQ callback slow threshold in nominal microseconds"
+	depends on WCH_UART_IRQ_TRACE
+	range 1 1000
+	default 8
+
+config WCH_UART_IRQ_TRACE_SAMPLE_INTERVAL
+	int "Time one in N IRQ callbacks (1 = intrusive full timing)"
+	depends on WCH_UART_IRQ_TRACE
+	range 1 65535
+	default 127
+	help
+	  Error snapshots and byte counters remain enabled on every IRQ.
+	  Full timing caused extra overruns during dual 921600 bring-up;
+	  sampled timing reduces but does not eliminate observer overhead.
+	  Prefer an odd interval to avoid always sampling TX in alternating
+	  RX/TX interrupt traffic.
 
 config WCH_UART_DMA_PREPARE
 	bool "Validate CH32V203 USART1/2 DMA resources (no transfers yet)"

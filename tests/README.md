@@ -40,6 +40,8 @@ bytes were lost; high-rate diagnosis and dual 3-Mbaud-capable bridges remain pen
 The [35-trial follow-up](../docs/hardware-20260910-921600.md), using
 `host/uart_irq_repeat.py`, also found USART1 loss. Earlier individual passes
 must not be treated as 921600 qualification.
+Optional `--trace-address` on that runner decodes the diagnostic driver's
+RAM records after traffic; see [IRQ tracing](../docs/uart-irq-trace.md).
 
 For first-power testing with an onboard CH340, see
 [`drivers/uart_polling`](drivers/uart_polling/README.md) and the
