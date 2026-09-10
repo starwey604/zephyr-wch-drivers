@@ -9,6 +9,7 @@ Nothing is flashed automatically; no UART DMA or USB transfer is validated.
 
 | Directory | Current behavior | Next hardware checks |
 | --- | --- | --- |
+| `drivers/uart_polling` | UART1/CH340 heartbeat and paced ASCII echo, first hardware run passed | Baud measurement, USART2; see dated hardware report |
 | `drivers/uart_dma` | Readiness/ownership, optional TX and paced local RX loopback | Capture dual-UART bytes/baud, tail/abort, RX timing |
 | `subsys/usb_endpoints` | Real vendor EP0/bulk echo firmware; build-only | Enumeration, DMA bytes/timing, reset/reconnect |
 | `host` | Targeted PyUSB runner + 4 executable host-script tests | Execute USB checks on the DUT; UART host generator pending |
@@ -30,6 +31,12 @@ driver uses DMA only in the explicit asynchronous TX/RX variants. A readiness ch
 of correct pin routing, request-channel selection, IRQ delivery or baud rate.
 
 ## Build in the Ragtime dev workspace
+
+For first-power testing with an onboard CH340, see
+[`drivers/uart_polling`](drivers/uart_polling/README.md) and the
+[first hardware report](../docs/hardware-20260910.md). The fixture keeps SDI,
+uses only USART1 and disables DMA/USB. Its host runner is separate from the
+USB host tests and needs pyserial, not PyUSB.
 
 Run from `~/codings/Ragtime_Firmwares` (`dev/wirelink-p0-hardening`) after
 updating the manifest pin. The old `ch32` worktree is no longer the dev target:

@@ -1,8 +1,10 @@
 # CH32V203 hardware gates
 
-**Status: awaiting board; no device has been flashed or qualified.** The current
-software increment ends at this gate. Resume together with the board owner;
-native tests and successful linking cannot waive any gate below.
+**Status: first board available; gate 1 partially executed.** The
+[2026-09-10 report](hardware-20260910.md) records successful flashing, a board
+startup-clock fix and paced UART1/CH340 echo. DMA/USB and the remaining gates
+are not qualified. Continue together with the board owner; native tests and
+successful linking cannot waive any gate below.
 
 This is the UART gate. USB was subsequently advanced independently at the
 product owner's request; see [USB's separate hardware gate](usb-udc.md).
@@ -90,5 +92,6 @@ Copy this checklist into a dated hardware report (do not record pending as pass)
 - Analyzer trace and stopped register snapshots; missing/duplicate/overrun count.
 - Reproduction steps for failures, recovery performed, and next agreed action.
 
-Keep secrets/device identifiers out of the public repository. No hardware
-report exists yet; the repository currently records software evidence only.
+Keep secrets/unique device identifiers out of the public repository. Extend
+dated reports with actual results; never turn partial gate coverage into a
+blanket hardware qualification claim.

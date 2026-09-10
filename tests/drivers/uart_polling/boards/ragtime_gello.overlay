@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+&usart1 {
+	current-speed = <115200>;
+};
+&usart2 {
+	status = "disabled";
+};

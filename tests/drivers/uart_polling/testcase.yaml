@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+tests:
+  wch.uart_polling.hil:
+    tags: [uart, wch]
+    platform_allow: [ragtime_gello/ch32v203]
+    build_only: true

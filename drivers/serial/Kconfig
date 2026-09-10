@@ -13,7 +13,8 @@ config WCH_UART
 	  CH32V203 bring-up. Disable UART_WCH_USART explicitly to avoid two
 	  drivers owning the same devicetree nodes. Polling and interrupt
 	  APIs are present; experimental async TX is a separate opt-in option.
-	  This driver has only been compile-tested, not hardware-validated.
+	  UART1 paced polling has been tested on one CH32V203F8U board.
+	  Interrupt and asynchronous modes still require hardware validation.
 
 config WCH_UART_DMA_PREPARE
 	bool "Validate CH32V203 USART1/2 DMA resources (no transfers yet)"

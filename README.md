@@ -13,14 +13,14 @@ baseline, experimental UART DMA TX/RX, USBFS UDC and executable test fixtures.
 | Component | Status |
 | --- | --- |
 | CMake / Kconfig / DTS module registration | Available |
-| External polling/interrupt UART baseline | Imported; compile-tested only |
+| External polling/interrupt UART baseline | UART1 paced polling tested on one F8U board; IRQ unqualified |
 | UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
 | External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
 | UART asynchronous TX using DMA | Opt-in; TC completion, abort/deadline, native tests |
 | UART asynchronous RX using DMA | Opt-in normal-mode buffers/disable/errors; finite timeout unsupported |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Experimental EP0 + EP1 IN/EP2 OUT; hardware gate |
 | ztest / Twister test structure | Native state tests; build-only DMA/UART/USB; targeted host USB fixture |
-| Hardware validation | Pending |
+| Hardware validation | First-power/flash/UART1 polling subset passed; DMA/USB pending |
 
 Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
 alone adds no driver code. To use the external UART baseline, explicitly set
@@ -61,6 +61,10 @@ read the wiring/recovery instructions before flashing. No USB device has been
 enumerated or qualified yet. Board defaults remain unchanged.
 
 ## Repository layout
+
+First hardware evidence: [2026-09-10 CH32V203F8U session](docs/hardware-20260910.md).
+It includes the Gello startup-clock fix needed after debugger reset, a small
+polling fixture and paced CH340 host checks. It does not qualify DMA or USB.
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
 - `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.

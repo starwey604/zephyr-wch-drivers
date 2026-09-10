@@ -17,10 +17,14 @@ intentionally reviewed as test evidence.
 
 ## Remaining fixtures
 
-- UART host traffic generator: configurable ports/baud, framed sequence number,
+- `uart_polling.py` now verifies the first-power UART1/CH340 firmware with
+  50 ms inter-byte pacing; see [its fixture](../drivers/uart_polling/README.md).
+  It uses pyserial and never flashes or resets a device.
+- UART high-rate host traffic generator: configurable ports/baud, framed sequence number,
   length/checksum, simultaneous bidirectional traffic and bounded failures.
 - USB sustained traffic, reconnect/reset and suspend/resume qualification.
   The current runner requests an optional reset but requires a separate rerun
   to verify re-enumeration.
 
-Hardware tests have not been executed; fake-API tests do not qualify transfers.
+The paced UART1 checks have run on one board; USB hardware tests have not.
+Fake-API tests do not qualify transfers.
