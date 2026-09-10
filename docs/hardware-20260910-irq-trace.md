@@ -93,3 +93,55 @@ IRQ/driver behavior change is included in this increment.
   remain failures and are retained in JSON.
 - Final runner reset cleared RAM after saving results, leaving the latest
   **921600 diagnostic image** installed. No image restoration is performed.
+
+## Follow-up hardware session: 21 additional trials
+
+At the owner's next request, reran the installed image without rebuilding or
+flashing. Full flash readback again matched the SHA-256 above. Source/runner
+baseline was `cffe4fc9a4eb14eba868497b1e3e14d3cb0f8672`; board, wiring and
+sample interval stayed unchanged. Each case used three reset-isolated trials,
+128 blocks maximum and a one-second receive deadline. All 21 boot checks
+passed. Local raw log:
+`build/test-wch-irq-trace-final/hil-followup-matrix.jsonl`.
+
+| Case at 921600 | Pass / trials | Observed failure |
+| --- | ---: | --- |
+| USART1, 512-byte blocks | 3 / 3 | None in these bounded runs |
+| USART2, 32-byte blocks | 3 / 3 | None in these bounded runs |
+| USART2, 64-byte blocks | 0 / 3 | Each second block returned no bytes; MCU counted all 128 RX bytes |
+| USART2, 128-byte blocks | 1 / 3 | Two second-block failures lost 5 and 6 bytes, starting at offset 64 |
+| USART2, 512-byte blocks | 0 / 3 | Failed blocks lost 2, 1 and 64 bytes |
+| Dual, 32-byte blocks | 0 / 3 | USART2 ORE during first block |
+| Dual, 512-byte blocks | 0 / 3 | USART2 ORE during first block |
+
+Total: **7 PASS, 14 FAIL, zero boot failures**. Successful single-port runs
+transferred 65,536 bytes (USART1/512), 4096 (USART2/32), or 16,384
+(USART2/128) each direction. Do not count aborted blocks as completed tests.
+
+All USART2-only failures had matching app/driver byte counters, no latched
+API/FIFO hardware errors and no software queue overflow. Software TX counts
+still cannot establish that every byte reached the physical wire or bridge.
+
+In all six dual trials, USART2 latched raw ORE `0x08`; the existing fixture
+then disabled that port's interrupts. Remaining unprocessed bytes after this
+fail-stop are not a measurement of the initial physical loss quantity.
+USART1 completed its own blocks after USART2 stopped, so those completions
+do not qualify a complete concurrent run.
+
+The first ORE in dual/32 trial 2 was again observed in `fifo_read()`:
+`first_error_status=0xE8`, `first_error_rx=12`, `first_error_tx=73`
+(TX includes the banner). Later API and FIFO latches both contained ORE.
+All five other dual cases first observed it at the entry error check.
+This repeats the entry-only observation gap in the instrumented fixture.
+
+Maximum sampled callback/service windows remained nominally 4.042/1.556 us;
+no sampled callback reached 8 us. This does not bound interrupt pending time
+or exclude missed unsampled delays. The known observer effect still prevents
+attributing the original non-trace failures solely to the captured ORE.
+
+No driver fix or peripheral configuration change was made in this session.
+Keep the two symptoms separate: complete software counts with missing host
+return bytes, versus MCU receive overrun under concurrent instrumented load.
+Next isolation work should separate RX/TX load and reduce diagnostic overhead
+before drawing causal conclusions. The final reset left the same **921600
+diagnostic image** installed; no restoration, DMA or 3-Mbaud tests occurred.
