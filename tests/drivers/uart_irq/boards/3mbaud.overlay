@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Requires two independently validated 3-Mbaud adapters/analyzer. */
+&usart1 { current-speed = <3000000>; };
+&usart2 { current-speed = <3000000>; };

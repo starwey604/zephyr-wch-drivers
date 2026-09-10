@@ -32,6 +32,11 @@ of correct pin routing, request-channel selection, IRQ delivery or baud rate.
 
 ## Build in the Ragtime dev workspace
 
+For binary interrupt TX/RX on both USARTs, use the separate
+[`drivers/uart_irq`](drivers/uart_irq/README.md) fixture and targeted
+`host/uart_irq.py` runner. Current hardware results cover USART1 only at
+115200/921600; USART2 wiring and dual 3-Mbaud-capable bridges remain pending.
+
 For first-power testing with an onboard CH340, see
 [`drivers/uart_polling`](drivers/uart_polling/README.md) and the
 [first hardware report](../docs/hardware-20260910.md). The fixture keeps SDI,

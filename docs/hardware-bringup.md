@@ -3,7 +3,9 @@
 **Status: first board available; gate 1 partially executed.** The
 [2026-09-10 report](hardware-20260910.md) records successful flashing, a board
 startup-clock fix and paced UART1/CH340 echo. DMA/USB and the remaining gates
-are not qualified. Continue together with the board owner; native tests and
+are not qualified. The [IRQ follow-up](hardware-20260910-irq.md) adds bounded
+USART1 checks at 115200/921600; USART2 link and dual 3 Mbaud remain blocked.
+Continue together with the board owner; native tests and
 successful linking cannot waive any gate below.
 
 This is the UART gate. USB was subsequently advanced independently at the
