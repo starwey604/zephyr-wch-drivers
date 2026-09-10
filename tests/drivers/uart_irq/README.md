@@ -9,6 +9,8 @@ Use separate 3.3 V TTL bridges, common ground, and crossed TX/RX:
 
 - USART1: PA9 TX -> bridge RX; PA10 RX <- bridge TX (onboard CH340E).
 - USART2: PA2 TX -> WCH-Link RX; PA3 RX <- WCH-Link TX.
+- On the purchased board's J1, PD00/TX2 (pin 3) is PA2 and PD01/RX2
+  (pin 2) is PA3: connect PD00 to Link RX and PD01 to Link TX.
 - Leave WCH-Link power outputs disconnected when the board is USB-powered.
 - Do not connect a second adapter TX to PA10 while CH340 TX still drives it.
 

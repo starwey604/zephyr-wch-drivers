@@ -13,14 +13,14 @@ baseline, experimental UART DMA TX/RX, USBFS UDC and executable test fixtures.
 | Component | Status |
 | --- | --- |
 | CMake / Kconfig / DTS module registration | Available |
-| External polling/interrupt UART baseline | UART1 polling and bounded IRQ echo at 115200/921600 tested; USART2 link pending |
+| External polling/interrupt UART baseline | Dual IRQ echo passed at 115200; UART1 at 921600; USART2 921600 burst loss under diagnosis |
 | UART DMA resource/contract preparation | Validation and host arithmetic tests; no transfers |
 | External general DMA driver | Fixed allocation, cyclic/error/count fixes; native tests, hardware pending |
 | UART asynchronous TX using DMA | Opt-in; TC completion, abort/deadline, native tests |
 | UART asynchronous RX using DMA | Opt-in normal-mode buffers/disable/errors; finite timeout unsupported |
 | USBFS UDC with endpoint DMA and bulk IN/OUT | Experimental EP0 + EP1 IN/EP2 OUT; hardware gate |
 | ztest / Twister test structure | Native state tests; build-only DMA/UART/USB; targeted host USB fixture |
-| Hardware validation | First-power/flash/UART1 polling + IRQ subset passed; dual-port/DMA/USB pending |
+| Hardware validation | First-power/flash/UART1 polling + dual IRQ 115200 subset passed; high-rate/DMA/USB pending |
 
 Existing upstream UART/DMA drivers remain the default. `CONFIG_WCH_DRIVERS=y`
 alone adds no driver code. To use the external UART baseline, explicitly set
@@ -65,8 +65,8 @@ enumerated or qualified yet. Board defaults remain unchanged.
 First hardware evidence: [2026-09-10 CH32V203F8U session](docs/hardware-20260910.md).
 It includes the Gello startup-clock fix needed after debugger reset, a small
 polling fixture and paced CH340 host checks. It does not qualify DMA or USB.
-The [IRQ follow-up](docs/hardware-20260910-irq.md) records UART1 binary echo,
-the USART2 link stop point, and bridge limitations blocking dual 3-Mbaud tests.
+The [IRQ follow-up](docs/hardware-20260910-irq.md) records dual binary echo at
+115200, corrected J1 wiring, USART2 burst loss at 921600, and the 3-Mbaud gate.
 
 - `drivers/serial/`: opt-in UART C source, CMake and Kconfig.
 - `drivers/dma/`: opt-in general DMA replacement using the upstream binding/API.
